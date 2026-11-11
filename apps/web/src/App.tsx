@@ -7,10 +7,12 @@ import {
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type React from "react";
+import { useState } from "react";
 import { ExpenseInput } from "./components/ExpenseInput";
 import { type TRPC, trpc } from "./trpc";
 
 export function App() {
+  const [value, setValue] = useState("");
   const status = useQuery(
     trpc.status.queryOptions(undefined, { retry: false }),
   );
@@ -29,6 +31,8 @@ export function App() {
             addExpenses.mutate({ description });
           }}
           fetching={addExpenses.isPending}
+          value={value}
+          setValue={setValue}
         />
       </SectionCard>
       <StatusCard status={status} />

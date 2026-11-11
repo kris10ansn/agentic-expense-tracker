@@ -1,4 +1,43 @@
+import type React from "react";
+import { useLayoutEffect, useRef } from "react";
 import { twMerge } from "tailwind-merge";
+
+export const TextArea = ({
+  className,
+  value,
+  onChange,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  });
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className={twMerge(
+        "min-h-11 w-full resize-none overflow-hidden rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition-colors placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60",
+        className,
+      )}
+      value={value}
+      onChange={(e) => {
+        const el = e.currentTarget;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+
+        onChange?.(e);
+      }}
+      {...props}
+    />
+  );
+};
 
 export const TextInput = ({
   className,

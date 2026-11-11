@@ -1,18 +1,22 @@
-import { Mic } from "lucide-react";
 import { useCallback } from "react";
-import { Button, TextInput } from "./inputs";
+import { Button, TextArea } from "./inputs";
 import { Spinner } from "./Spinner";
+import { VoiceButton } from "./VoiceButton";
 
 export type ExpenseInputProps = {
   onSubmit: (text: string) => unknown;
   fetching: boolean;
   disabled?: boolean;
+  value: string;
+  setValue: (value: string) => void;
 };
 
 export function ExpenseInput({
   onSubmit,
   fetching,
   disabled,
+  value,
+  setValue,
 }: ExpenseInputProps) {
   const action = useCallback(
     (data: FormData) => {
@@ -29,15 +33,19 @@ export function ExpenseInput({
   );
 
   return (
-    <form className="flex flex-row gap-4" action={action}>
-      <TextInput
+    <form className="flex flex-col gap-4" action={action}>
+      <TextArea
         name="text"
         placeholder="Describe an expense..."
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
         disabled={fetching || disabled}
       />
-      <Button variant="secondary">
-        <Mic />
-      </Button>
+
+      <VoiceButton
+        onTranscript={(transcript) => setValue(transcript)}
+        onError={console.error.bind(null, "voicebutton")}
+      />
 
       <Button
         className="flex flex-row gap-2"
