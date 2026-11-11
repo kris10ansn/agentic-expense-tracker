@@ -1,5 +1,5 @@
 type EventFromHandler<H> =
-  NonNullable<H> extends (this: any, event: infer E) => unknown ? E : never;
+  NonNullable<H> extends (event: infer E) => unknown ? E : never;
 
 type EventMapFromOn<T extends EventTarget> = {
   [K in keyof T as K extends `on${infer Name}`

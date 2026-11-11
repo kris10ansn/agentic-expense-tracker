@@ -5,11 +5,11 @@ const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
 export const useSpeech = ({
-  onTranscript,
+  onResults,
   onError,
 }: {
   onError?: (error: { message: string }) => void;
-  onTranscript: (transcript: string) => void;
+  onResults: (results: SpeechRecognitionResultList) => void;
 }) => {
   const [speech] = useState(() => {
     const recognition = new SpeechRecognition();
@@ -37,28 +37,12 @@ export const useSpeech = ({
 
   useEffect(() => {
     return createSubscriptions(speech, {
-      result: (event) => {
-        const transcript = event.results[0]?.[0]?.transcript;
-
-        if (!transcript) {
-          onError?.({ message: "No transcript!" });
-          return;
-        }
-
-        onTranscript(transcript);
-      },
+      result: ({ results }) => onResults(results),
       error: (error) => onError?.(error),
       start: () => setIsRecording(true),
       end: () => setIsRecording(false),
-      audiostart: console.log.bind(null, "audiostart"),
-      audioend: console.log.bind(null, "audioend"),
-      soundstart: console.log.bind(null, "soundstart"),
-      soundend: console.log.bind(null, "soundend"),
-      speechstart: console.log.bind(null, "speechstart"),
-      speechend: console.log.bind(null, "speechend"),
-      nomatch: console.log.bind(null, "nomatch"),
     });
-  }, [speech, onError, onTranscript]);
+  }, [speech, onError, onResults]);
 
   if (!("SpeechRecognition" in window || "webkitSpeechRecognition" in window)) {
     return { isSupported: false } as const;
@@ -72,3 +56,10 @@ export const useSpeech = ({
     error,
   };
 };
+
+export const createTranscript = (results: SpeechRecognitionResultList) =>
+  Array.from(results)
+    .map((result) => result[0]?.transcript ?? "")
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+([.,!?;:])/g, "$1");

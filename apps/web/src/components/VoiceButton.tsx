@@ -1,7 +1,7 @@
 import { Mic, MicOff } from "lucide-react";
 import { useCallback } from "react";
 import { twMerge } from "tailwind-merge";
-import { useSpeech } from "../hooks/useSpeech";
+import { createTranscript, useSpeech } from "../hooks/useSpeech";
 import { Button } from "./inputs";
 
 export type VoiceButtonProps = {
@@ -10,7 +10,10 @@ export type VoiceButtonProps = {
 };
 
 export function VoiceButton({ onTranscript, onError }: VoiceButtonProps) {
-  const speech = useSpeech({ onTranscript, onError });
+  const speech = useSpeech({
+    onResults: (results) => onTranscript(createTranscript(results)),
+    onError,
+  });
 
   const onClick = useCallback(() => {
     if (!speech.isSupported) throw new Error("Web Speech API not supported!");
