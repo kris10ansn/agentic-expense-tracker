@@ -17,7 +17,9 @@
     "db:migrate": "bun --env-file=../../.env src/db/migrate.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.117",
     "@trpc/server": "11.28.0",
+    "ai": "^7.0.169",
     "drizzle-orm": "^0.45.4",
     "zod": "^4.6.7"
   },
