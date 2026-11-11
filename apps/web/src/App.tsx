@@ -8,6 +8,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "@ai-expenses/api";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type React from "react";
+import { ExpenseInput } from "./components/ExpenseInput";
 
 export function App() {
   const status = useQuery(
@@ -19,29 +20,16 @@ export function App() {
   return (
     <main className="flex flex-col gap-4 min-h-screen items-center justify-center px-6 py-16">
       <SectionCard>
-        <form
-          className="flex flex-row gap-4"
-          action={async (data) => {
-            const text = data.get("text");
+        <h1 className="text-lg font-bold">Output:</h1>
 
-            if (text !== null) {
-              console.log("Sending addExpenses request", { text });
-              const response = await addExpenses.mutateAsync({
-                description: text.toString(),
-              });
+        <pre>{JSON.stringify(addExpenses.data ?? "no-data", null, 4)}</pre>
 
-              console.log("Got response!", response);
-            } else {
-              console.error(
-                "No text provided",
-                Object.fromEntries(data.entries()),
-              );
-            }
+        <ExpenseInput
+          onSubmit={function (description: string) {
+            addExpenses.mutate({ description });
           }}
-        >
-          <TextInput name="text" placeholder="Describe an expense..." />
-          <ButtonInput type="submit" value="Send" />
-        </form>
+          fetching={addExpenses.isPending}
+        />
       </SectionCard>
       <StatusCard status={status} />
     </main>
@@ -54,34 +42,6 @@ type StatusCardProps = {
     TRPCClientErrorLike<AppRouter>
   >;
 };
-
-const TextInput = ({
-  ...props
-}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "className" | "type">) => (
-  <input
-    type="text"
-    className="h-11 w-full rounded-xl border border-slate-300 bg-white px-4
-           text-sm text-slate-900 shadow-sm placeholder:text-slate-400
-           transition-colors hover:border-slate-400
-           focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20
-           disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60"
-    {...props}
-  />
-);
-const ButtonInput = ({
-  ...props
-}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "className">) => (
-  <input
-    type={props.type ?? "button"}
-    className="inline-flex h-11 items-center justify-center rounded-xl
-           bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm
-           transition-colors hover:bg-indigo-700 active:bg-indigo-800
-           focus-visible:outline-none focus-visible:ring-2
-           focus-visible:ring-indigo-500 focus-visible:ring-offset-2
-           disabled:pointer-events-none disabled:opacity-50"
-    {...props}
-  />
-);
 
 const StatusCard = ({ status }: StatusCardProps) => (
   <SectionCard>
