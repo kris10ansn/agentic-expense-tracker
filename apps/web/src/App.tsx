@@ -1,14 +1,14 @@
+import type { AppRouter } from "@ai-expenses/api";
 import {
+  type UseQueryResult,
   useMutation,
   useQuery,
-  type UseQueryResult,
 } from "@tanstack/react-query";
-import { trpc, type TRPC } from "./trpc";
-import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { AppRouter } from "@ai-expenses/api";
 import type { TRPCClientErrorLike } from "@trpc/client";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type React from "react";
 import { ExpenseInput } from "./components/ExpenseInput";
+import { type TRPC, trpc } from "./trpc";
 
 export function App() {
   const status = useQuery(
@@ -18,14 +18,14 @@ export function App() {
   const addExpenses = useMutation(trpc.addExpenses.mutationOptions());
 
   return (
-    <main className="flex flex-col gap-4 min-h-screen items-center justify-center px-6 py-16">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 py-16">
       <SectionCard>
         <h1 className="text-lg font-bold">Output:</h1>
 
         <pre>{JSON.stringify(addExpenses.data ?? "no-data", null, 4)}</pre>
 
         <ExpenseInput
-          onSubmit={function (description: string) {
+          onSubmit={(description: string) => {
             addExpenses.mutate({ description });
           }}
           fetching={addExpenses.isPending}

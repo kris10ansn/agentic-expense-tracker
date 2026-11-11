@@ -1,9 +1,9 @@
-import { initTRPC, TRPCError } from "@trpc/server";
-import { sql } from "drizzle-orm";
-import type { Database } from "./db";
-import z from "zod";
-import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
+import { initTRPC, TRPCError } from "@trpc/server";
+import { generateText, Output } from "ai";
+import { sql } from "drizzle-orm";
+import z from "zod";
+import type { Database } from "./db";
 
 const t = initTRPC.context<{ db: Database }>().create();
 
