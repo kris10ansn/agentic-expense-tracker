@@ -20,7 +20,17 @@ bun run db:up
 bun run dev
 ```
 
-Open <http://localhost:5173>. The status panel queries the API and checks the database connection. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
+Open <http://localhost:5173> to compare three Ledger-based layouts. All have Expenses, Collections, and an empty Settings page, with bottom navigation on mobile. Switch designs with the floating controls or the left and right arrow keys:
+
+- [Sidebar](http://localhost:5173/?variant=sidebar): labelled desktop navigation and a plain transaction list.
+- [Rail](http://localhost:5173/?variant=rail): compact desktop icons and floating mobile navigation.
+- [Inset](http://localhost:5173/?variant=inset): a white workspace beside a sidebar on a neutral background.
+
+These layouts omit statistics and budget inputs. Edits survive layout switches. The comparison controls appear only in development. The initial studies remain at `?variant=ledger`, `?variant=pocket`, and `?variant=journal`. The earlier dashboard is preserved at <http://localhost:5173/dashboard>.
+
+The demo uses mock data and supports creating, viewing, editing, and deleting expenses and collections. Each expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes reset when you refresh.
+
+The demo runs with `bun run dev:web` alone. The original AI input and connection-status screen is at <http://localhost:5173/playground> and requires the API. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
 
 `bun run dev:api` and `bun run dev:web` start the apps separately. Both read settings from the root `.env`. Vite proxies `/trpc` to the API using `API_PORT` and keeps database settings out of browser code.
 
