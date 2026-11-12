@@ -2,19 +2,22 @@ import { describe, expect, test } from "bun:test";
 import { configSchema } from "./config";
 
 const databaseUrl = "postgresql://user:password@localhost:5432/expenses";
+const validConfig = {
+  DATABASE_URL: databaseUrl,
+  GOOGLE_GENERATIVE_AI_API_KEY: "test-api-key",
+};
 
 describe("API configuration", () => {
   test("uses the default API port", () => {
-    expect(configSchema.parse({ DATABASE_URL: databaseUrl })).toEqual({
-      DATABASE_URL: databaseUrl,
+    expect(configSchema.parse(validConfig)).toEqual({
+      ...validConfig,
       API_PORT: 3001,
     });
   });
 
   test("accepts an explicit API port", () => {
     expect(
-      configSchema.parse({ DATABASE_URL: databaseUrl, API_PORT: "4000" })
-        .API_PORT,
+      configSchema.parse({ ...validConfig, API_PORT: "4000" }).API_PORT,
     ).toBe(4000);
   });
 
@@ -25,9 +28,9 @@ describe("API configuration", () => {
   test.each(["not-a-url", "https://localhost/database", "sqlite://database"])(
     "rejects invalid database URL %s",
     (url) => {
-      expect(() => configSchema.parse({ DATABASE_URL: url })).toThrow(
-        "DATABASE_URL",
-      );
+      expect(() =>
+        configSchema.parse({ ...validConfig, DATABASE_URL: url }),
+      ).toThrow("DATABASE_URL");
     },
   );
 
@@ -35,7 +38,7 @@ describe("API configuration", () => {
     "rejects invalid port %s",
     (port) => {
       expect(() =>
-        configSchema.parse({ DATABASE_URL: databaseUrl, API_PORT: port }),
+        configSchema.parse({ ...validConfig, API_PORT: port }),
       ).toThrow("API_PORT");
     },
   );
