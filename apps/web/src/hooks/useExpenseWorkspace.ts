@@ -5,13 +5,7 @@ import {
   initialExpenses,
   months,
 } from "../data/demo";
-import {
-  type Collection,
-  type Expense,
-  formatMonth,
-  totalExpenses,
-  type WorkspaceView,
-} from "../lib/expenses";
+import type { Collection, Expense, WorkspaceView } from "../lib/expenses";
 
 const NOTICE_DURATION_MS = 4500;
 
@@ -22,7 +16,7 @@ type DialogState =
   | { kind: "delete-expense"; expense: Expense }
   | { kind: "delete-collection"; collection: Collection };
 
-export function useExpenseWorkspace(initialView: WorkspaceView = "overview") {
+export function useExpenseWorkspace(initialView: WorkspaceView = "home") {
   const [view, setView] = useState<WorkspaceView>(initialView);
   const [expenses, setExpenses] = useState(initialExpenses);
   const [collections, setCollections] = useState(initialCollections);
@@ -46,7 +40,6 @@ export function useExpenseWorkspace(initialView: WorkspaceView = "overview") {
   ]
     .sort()
     .reverse();
-  const monthLabel = formatMonth(selectedMonth);
   const monthlyExpenses = expenses.filter((expense) =>
     expense.date.startsWith(selectedMonth),
   );
@@ -57,19 +50,6 @@ export function useExpenseWorkspace(initialView: WorkspaceView = "overview") {
         expense.collectionId === selectedCollection,
     )
     .sort((a, b) => b.date.localeCompare(a.date));
-  const visibleCollections = collections.filter(
-    (collection) =>
-      selectedCollection === "all" || collection.id === selectedCollection,
-  );
-  const spent = totalExpenses(visibleExpenses);
-  const budget = visibleCollections.reduce(
-    (total, collection) => total + collection.budget,
-    0,
-  );
-  const selectedCollectionName = collections.find(
-    (item) => item.id === selectedCollection,
-  )?.name;
-
   function changeView(nextView: WorkspaceView) {
     setView(nextView);
     window.scrollTo({ top: 0 });
@@ -143,13 +123,8 @@ export function useExpenseWorkspace(initialView: WorkspaceView = "overview") {
     dialog,
     notice,
     availableMonths,
-    monthLabel,
     monthlyExpenses,
     visibleExpenses,
-    visibleCollections,
-    spent,
-    budget,
-    selectedCollectionName,
     changeView,
     openCollection,
     addExpense,

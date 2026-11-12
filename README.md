@@ -20,13 +20,17 @@ bun run db:up
 bun run dev
 ```
 
-Open <http://localhost:5173> to compare three Ledger-based layouts. All have Expenses, Collections, and an empty Settings page, with bottom navigation on mobile. Switch designs with the floating controls or the left and right arrow keys:
+Open <http://localhost:5173> to compare three home-screen capture layouts in the selected Inset workspace:
 
-- [Sidebar](http://localhost:5173/?variant=sidebar): labelled desktop navigation and a plain transaction list.
-- [Rail](http://localhost:5173/?variant=rail): compact desktop icons and floating mobile navigation.
-- [Inset](http://localhost:5173/?variant=inset): a white workspace beside a sidebar on a neutral background.
+- [Dock](http://localhost:5173/?variant=dock): text, camera, and gallery above a wide record button.
+- [Voice first](http://localhost:5173/?variant=voice): a central record button between camera and gallery.
+- [One hand](http://localhost:5173/?variant=one-hand): a compact composer with recording at the lower right.
 
-These layouts omit statistics and budget inputs. Edits survive layout switches. The comparison controls appear only in development. The initial studies remain at `?variant=ledger`, `?variant=pocket`, and `?variant=journal`. The earlier dashboard is preserved at <http://localhost:5173/dashboard>.
+The capture controls are visual prototypes. You can enter draft text and choose a collection, but they do not record audio, open the camera or gallery, or create expenses. Mobile navigation has Home, Expenses, Collections, and an empty Settings page. Desktop uses a sidebar. The earlier layout alternatives and statistics have been removed.
+
+Compare three pending AI expense rows at [the pending expense study](http://localhost:5173/prototypes/pending-expense?variant=quiet). The variants are `quiet`, `progress`, and `receipt`. Each displays a mock entry above saved expenses while waiting for AI. The pending entry is separate from saved data and does not change automatically.
+
+Use the comparison arrows or the left and right arrow keys to switch variants. The comparison controls appear only in development, at the top on mobile and at the bottom on desktop. Draft text and mock edits survive variant switches.
 
 The demo uses mock data and supports creating, viewing, editing, and deleting expenses and collections. Each expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes reset when you refresh.
 

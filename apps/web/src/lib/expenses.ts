@@ -10,11 +10,7 @@ import {
 import type { TRPC } from "../trpc";
 
 type ExtractedExpense = inferOutput<TRPC["addExpenses"]>["expenses"][number];
-export type WorkspaceView =
-  | "overview"
-  | "expenses"
-  | "collections"
-  | "settings";
+export type WorkspaceView = "home" | "expenses" | "collections" | "settings";
 
 export type Category = NonNullable<ExtractedExpense["category"]>;
 export type Expense = Pick<ExtractedExpense, "title" | "amount"> & {
@@ -96,15 +92,6 @@ export const collectionColors = [
   { value: "#9c92b5", label: "Purple" },
   { value: "#c77f7f", label: "Rose" },
 ];
-export function totalExpenses(expenses: Expense[]) {
-  return (
-    expenses.reduce(
-      (total, expense) => total + Math.round(expense.amount * 100),
-      0,
-    ) / 100
-  );
-}
-
 export function formatAmount(amount: number, fractionDigits = 0) {
   return new Intl.NumberFormat("nb-NO", {
     minimumFractionDigits: fractionDigits,

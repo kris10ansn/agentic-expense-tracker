@@ -1,14 +1,9 @@
-import { Dashboard } from "./pages/Dashboard";
 import { Playground } from "./pages/Playground";
 import { ExpensePrototypePage } from "./pages/prototypes/ExpensePrototypePage";
 
 export function App() {
   if (window.location.pathname.replace(/\/$/, "") === "/playground") {
     return <Playground />;
-  }
-
-  if (window.location.pathname.replace(/\/$/, "") === "/dashboard") {
-    return <Dashboard />;
   }
 
   return <ExpensePrototypePage />;

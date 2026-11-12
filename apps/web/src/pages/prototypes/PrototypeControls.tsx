@@ -13,12 +13,7 @@ import { useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 import { Button, IconButton, Select, TextInput } from "../../components/inputs";
 import type { ExpenseWorkspace } from "../../hooks/useExpenseWorkspace";
-import {
-  type Expense,
-  formatAmount,
-  formatMonth,
-  totalExpenses,
-} from "../../lib/expenses";
+import { type Expense, formatMonth } from "../../lib/expenses";
 
 export type PrototypeWorkspace = ExpenseWorkspace & {
   search: string;
@@ -26,30 +21,28 @@ export type PrototypeWorkspace = ExpenseWorkspace & {
   filteredExpenses: Expense[];
 };
 export type PrototypeProps = { workspace: PrototypeWorkspace };
-export type Variant =
-  | "ledger"
-  | "pocket"
-  | "journal"
-  | "sidebar"
-  | "rail"
-  | "inset";
-export type VariantOption = { id: Variant; name: string; description: string };
-export const initialVariants: VariantOption[] = [
-  { id: "ledger", name: "Ledger", description: "Compact · Inter" },
-  { id: "pocket", name: "Pocket", description: "Collection-first · Manrope" },
-  { id: "journal", name: "Journal", description: "Editorial · Lora" },
+export type Variant = "dock" | "voice" | "one-hand";
+export type VariantOption<Id extends string = Variant> = {
+  id: Id;
+  name: string;
+  description: string;
+};
+export const captureVariants: VariantOption[] = [
+  { id: "dock", name: "Dock", description: "Full-width recording" },
+  { id: "voice", name: "Voice first", description: "Central recording" },
+  { id: "one-hand", name: "One hand", description: "Thumb-side recording" },
 ];
 
-export function PrototypeSwitcher({
+export function PrototypeSwitcher<Id extends string>({
   variant,
   variants,
   onChange,
   className,
 }: {
-  variant: Variant;
-  variants: VariantOption[];
+  variant: Id;
+  variants: VariantOption<Id>[];
   className?: string;
-  onChange: (variant: Variant) => void;
+  onChange: (variant: Id) => void;
 }) {
   const index = variants.findIndex((item) => item.id === variant);
   const current = variants[index];
@@ -88,7 +81,7 @@ export function PrototypeSwitcher({
     <aside
       aria-label="Prototype switcher"
       className={twMerge(
-        "font-inter fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/15 bg-neutral-900 p-1.5 text-white shadow-xl",
+        "font-inter relative z-40 flex h-11 items-center justify-center gap-2 bg-neutral-900 text-white lg:fixed lg:bottom-4 lg:left-1/2 lg:h-auto lg:-translate-x-1/2 lg:rounded-full lg:border lg:border-white/15 lg:p-1.5 lg:shadow-xl",
         className,
       )}
     >
@@ -99,14 +92,20 @@ export function PrototypeSwitcher({
       >
         <ArrowLeft className="size-4" />
       </IconButton>
-      <div className="min-w-40 px-2 text-center" aria-live="polite">
+      <div
+        className="flex min-w-48 items-center justify-center gap-3 px-2 text-center lg:block"
+        aria-live="polite"
+      >
         <div className="text-xs font-medium">
           <span className="mr-2 text-white/40">
             {index + 1} / {variants.length}
           </span>
           {current?.name}
         </div>
-        <p className="mt-1 text-xs text-white/50">{current?.description}</p>
+        <p className="text-xs text-white/50 lg:mt-1">
+          <span className="lg:hidden">Visual study</span>
+          <span className="hidden lg:inline">{current?.description}</span>
+        </p>
       </div>
       <IconButton
         aria-label="Next design"
@@ -116,37 +115,6 @@ export function PrototypeSwitcher({
         <ArrowRight className="size-4" />
       </IconButton>
     </aside>
-  );
-}
-
-export function WorkspaceTabs({
-  workspace,
-  className,
-}: PrototypeProps & { className?: string }) {
-  return (
-    <nav
-      aria-label="Workspace navigation"
-      className={twMerge("flex items-center gap-6", className)}
-    >
-      {["expenses", "collections"].map((view) => (
-        <button
-          key={view}
-          type="button"
-          className={twMerge(
-            "min-h-11 cursor-pointer border-b-2 border-transparent text-sm text-neutral-400 transition-colors hover:text-neutral-900",
-            workspace.view === view &&
-              "border-neutral-900 font-medium text-neutral-900",
-          )}
-          aria-current={workspace.view === view ? "page" : undefined}
-          onClick={() => {
-            if (view === "expenses" || view === "collections")
-              workspace.changeView(view);
-          }}
-        >
-          {view === "expenses" ? "Expenses" : "Collections"}
-        </button>
-      ))}
-    </nav>
   );
 }
 
@@ -272,8 +240,7 @@ export function EmptyExpenses({ workspace }: PrototypeProps) {
 export function PrototypeCollectionList({
   workspace,
   className,
-  showTotals = true,
-}: PrototypeProps & { className?: string; showTotals?: boolean }) {
+}: PrototypeProps & { className?: string }) {
   return (
     <div className={twMerge("divide-y divide-neutral-200/70", className)}>
       {workspace.collections.map((collection) => {
@@ -299,9 +266,6 @@ export function PrototypeCollectionList({
                 </span>
                 <span className="mt-1 block text-xs text-neutral-500">
                   {expenses.length} expenses
-                  {showTotals && (
-                    <> · {formatAmount(totalExpenses(expenses))} kr</>
-                  )}
                 </span>
               </span>
               <ChevronRight className="ml-auto hidden size-4 text-neutral-400 sm:block" />

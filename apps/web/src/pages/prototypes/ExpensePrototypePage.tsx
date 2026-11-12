@@ -1,38 +1,34 @@
-// Ledger navigation studies on /, selected by ?variant=sidebar|rail|inset.
-// Earlier layout studies remain available at ?variant=ledger|pocket|journal.
-// Shared mock state keeps edits intact when comparing the layouts.
+// Three capture layouts on /, selected with ?variant=dock|voice|one-hand.
+// The chosen inset shell and mock workspace are shared between the studies.
 import { useCallback, useEffect, useState } from "react";
 import { WorkspaceDialogs } from "../../components/expenses/WorkspaceDialogs";
 import { useExpenseWorkspace } from "../../hooks/useExpenseWorkspace";
-import { JournalPrototype } from "./JournalPrototype";
+import { HomeCapturePrototype } from "./HomeCapturePrototype";
+import { InsetWorkspace } from "./InsetWorkspace";
+import { LedgerContent } from "./LedgerContent";
+import { type PendingVariant, pendingVariants } from "./PendingExpenseRow";
+import { PendingExpenseStudy } from "./PendingExpenseStudy";
 import {
-  LedgerNavigationPrototype,
-  ledgerVariants,
-} from "./LedgerNavigationPrototype";
-import { LedgerPrototype } from "./LedgerPrototype";
-import { PocketPrototype } from "./PocketPrototype";
-import {
-  initialVariants,
+  captureVariants,
   PrototypeSwitcher,
   type Variant,
 } from "./PrototypeControls";
 
-function readVariant(): Variant {
+type StudyVariant = Variant | PendingVariant;
+const isPendingStudy =
+  window.location.pathname.replace(/\/$/, "") === "/prototypes/pending-expense";
+const variants = isPendingStudy ? pendingVariants : captureVariants;
+
+function readVariant(): StudyVariant {
   const value = new URLSearchParams(window.location.search).get("variant");
-  switch (value) {
-    case "ledger":
-    case "pocket":
-    case "journal":
-    case "rail":
-    case "inset":
-      return value;
-    default:
-      return "sidebar";
-  }
+  return (
+    variants.find((variant) => variant.id === value)?.id ??
+    (isPendingStudy ? "quiet" : "dock")
+  );
 }
 
 export function ExpensePrototypePage() {
-  const state = useExpenseWorkspace("expenses");
+  const state = useExpenseWorkspace(isPendingStudy ? "expenses" : "home");
   const [variant, setVariant] = useState(readVariant);
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
@@ -45,12 +41,11 @@ export function ExpensePrototypePage() {
     ),
   };
 
-  const changeVariant = useCallback((next: Variant) => {
+  const changeVariant = useCallback((next: StudyVariant) => {
     const url = new URL(window.location.href);
     url.searchParams.set("variant", next);
     window.history.replaceState(null, "", url);
     setVariant(next);
-    window.scrollTo({ top: 0 });
   }, []);
 
   useEffect(() => {
@@ -59,28 +54,40 @@ export function ExpensePrototypePage() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  const isLedgerStudy =
-    variant === "sidebar" || variant === "rail" || variant === "inset";
-
   return (
-    <>
-      {isLedgerStudy && (
-        <LedgerNavigationPrototype workspace={workspace} variant={variant} />
-      )}
-      {variant === "ledger" && <LedgerPrototype workspace={workspace} />}
-      {variant === "pocket" && <PocketPrototype workspace={workspace} />}
-      {variant === "journal" && <JournalPrototype workspace={workspace} />}
-      <div className="font-inter">
-        <WorkspaceDialogs workspace={workspace} showBudgets={!isLedgerStudy} />
-      </div>
+    <div
+      className="expense-prototype font-inter"
+      data-preview={import.meta.env.DEV}
+    >
       {import.meta.env.DEV && (
         <PrototypeSwitcher
           variant={variant}
-          variants={isLedgerStudy ? ledgerVariants : initialVariants}
+          variants={variants}
           onChange={changeVariant}
-          className={isLedgerStudy ? "bottom-24 lg:bottom-4" : ""}
         />
       )}
-    </>
+      <InsetWorkspace workspace={workspace}>
+        {isPendingStudy && workspace.view === "expenses" ? (
+          <PendingExpenseStudy
+            workspace={workspace}
+            variant={
+              variant === "progress" || variant === "receipt"
+                ? variant
+                : "quiet"
+            }
+          />
+        ) : workspace.view === "home" ? (
+          <HomeCapturePrototype
+            workspace={workspace}
+            variant={
+              variant === "voice" || variant === "one-hand" ? variant : "dock"
+            }
+          />
+        ) : (
+          <LedgerContent workspace={workspace} />
+        )}
+      </InsetWorkspace>
+      <WorkspaceDialogs workspace={workspace} showBudgets={false} />
+    </div>
   );
 }

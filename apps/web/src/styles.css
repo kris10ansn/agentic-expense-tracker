@@ -29,24 +29,27 @@
   src: url("/fonts/inter-latin.woff2") format("woff2");
 }
 
-@font-face {
-  font-family: Manrope;
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: url("/fonts/manrope-latin.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: Lora;
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url("/fonts/lora-latin.woff2") format("woff2");
-}
-
 @theme {
   --font-inter: "Inter", sans-serif;
-  --font-manrope: "Manrope", sans-serif;
-  --font-editorial: "Lora", Georgia, serif;
+}
+
+/* Shared viewport measurements keep capture controls above mobile navigation. */
+.expense-prototype {
+  --mobile-navigation-height: calc(
+    var(--spacing) *
+    16 +
+    env(safe-area-inset-bottom)
+  );
+  --mobile-header-height: calc(var(--spacing) * 14);
+  --prototype-toolbar-height: 0px;
+  --home-height: calc(
+    100dvh -
+    var(--mobile-navigation-height) -
+    var(--mobile-header-height) -
+    var(--prototype-toolbar-height)
+  );
+}
+
+.expense-prototype[data-preview="true"] {
+  --prototype-toolbar-height: calc(var(--spacing) * 11);
 }
