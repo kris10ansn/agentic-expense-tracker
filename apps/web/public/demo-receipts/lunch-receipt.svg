@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420">
+  <title>Sample lunch receipt for 185 kroner</title>
+  <rect width="300" height="420" fill="#e9e7e1"/>
+  <path d="M35 18H265V395L255 402L245 395L235 402L225 395L215 402L205 395L195 402L185 395L175 402L165 395L155 402L145 395L135 402L125 395L115 402L105 395L95 402L85 395L75 402L65 395L55 402L45 395L35 402Z" fill="#fffef9"/>
+  <g fill="#343430" font-family="monospace" text-anchor="middle">
+    <text x="150" y="53" font-size="10" letter-spacing="3" fill="#85857b">SAMPLE</text>
+    <text x="150" y="88" font-size="22" font-weight="700">GODT BRØD</text>
+    <text x="150" y="109" font-size="11">Baked fresh in Oslo</text>
+    <text x="150" y="143" font-size="11">12 NOV 2026 · 12:34</text>
+  </g>
+  <g stroke="#b9b9b0" stroke-dasharray="3 3">
+    <path d="M55 163H245"/>
+    <path d="M55 260H245"/>
+    <path d="M55 311H245"/>
+  </g>
+  <g fill="#343430" font-family="monospace" font-size="16">
+    <text x="55" y="192">Sandwich</text><text x="245" y="192" text-anchor="end">129.00</text>
+    <text x="55" y="218">Cappuccino</text><text x="245" y="218" text-anchor="end">56.00</text>
+    <text x="55" y="288" font-weight="700">TOTAL NOK</text><text x="245" y="288" text-anchor="end" font-weight="700">185.00</text>
+    <text x="150" y="344" text-anchor="middle" font-size="11">Thank you for visiting</text>
+    <text x="150" y="366" text-anchor="middle" font-size="9" fill="#85857b">DEMO RECEIPT · NOT A PURCHASE</text>
+  </g>
+</svg>

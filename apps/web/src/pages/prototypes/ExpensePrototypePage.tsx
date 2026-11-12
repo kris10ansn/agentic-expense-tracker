@@ -1,15 +1,15 @@
-// The inset mock workspace hosts floating-dock, pending-row, and hold-animation studies.
+// The chosen floating panel hosts image-receipt and hold-animation studies.
 import { useCallback, useEffect, useState } from "react";
 import { WorkspaceDialogs } from "../../components/expenses/WorkspaceDialogs";
 import { useExpenseWorkspace } from "../../hooks/useExpenseWorkspace";
-import { type DockVariant, dockVariants } from "./FloatingCaptureDock";
+import {
+  ExpenseHistoryStudy,
+  type HistoryVariant,
+  historyVariants,
+} from "./ExpenseHistoryStudy";
 import { HomeCapturePrototype } from "./HomeCapturePrototype";
 import { InsetWorkspace } from "./InsetWorkspace";
 import { LedgerContent } from "./LedgerContent";
-import {
-  type ManualEntryVariant,
-  manualEntryVariants,
-} from "./ManualExpenseAction";
 import { type PendingVariant, pendingVariants } from "./PendingExpenseRow";
 import { PendingExpenseStudy } from "./PendingExpenseStudy";
 import { PrototypeSwitcher, type VariantOption } from "./PrototypeControls";
@@ -19,39 +19,28 @@ import {
   recordingVariants,
 } from "./RecordingButtonStudy";
 
-type StudyVariant =
-  | DockVariant
-  | PendingVariant
-  | RecordingVariant
-  | ManualEntryVariant;
+type StudyVariant = PendingVariant | RecordingVariant | HistoryVariant;
 const pathname = window.location.pathname.replace(/\/$/, "");
 const isPendingStudy = pathname === "/prototypes/pending-expense";
 const isRecordingStudy = pathname === "/prototypes/recording";
-const isManualStudy = pathname === "/prototypes/manual-entry";
+const isHistoryStudy = pathname === "/prototypes/expense-history";
+const isStudy = isPendingStudy || isRecordingStudy || isHistoryStudy;
 const variants: VariantOption<StudyVariant>[] = isPendingStudy
   ? pendingVariants
-  : isRecordingStudy
-    ? recordingVariants
-    : isManualStudy
-      ? manualEntryVariants
-      : dockVariants;
+  : isHistoryStudy
+    ? historyVariants
+    : recordingVariants;
 
 function readVariant(): StudyVariant {
   const value = new URLSearchParams(window.location.search).get("variant");
   return (
     variants.find((variant) => variant.id === value)?.id ??
-    (isPendingStudy
-      ? "quiet"
-      : isRecordingStudy
-        ? "pulse"
-        : isManualStudy
-          ? "header"
-          : "panel")
+    (isPendingStudy ? "receipt" : isHistoryStudy ? "days" : "pulse-wave")
   );
 }
 
 export function ExpensePrototypePage() {
-  const state = useExpenseWorkspace(isPendingStudy ? "expenses" : "home");
+  const state = useExpenseWorkspace(isHistoryStudy ? "expenses" : "home");
   const [variant, setVariant] = useState(readVariant);
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
@@ -80,9 +69,9 @@ export function ExpensePrototypePage() {
   return (
     <div
       className="expense-prototype font-inter"
-      data-preview={import.meta.env.DEV}
+      data-preview={import.meta.env.DEV && isStudy}
     >
-      {import.meta.env.DEV && (
+      {import.meta.env.DEV && isStudy && (
         <PrototypeSwitcher
           variant={variant}
           variants={variants}
@@ -90,38 +79,38 @@ export function ExpensePrototypePage() {
         />
       )}
       <InsetWorkspace workspace={workspace} capture>
-        {isPendingStudy && workspace.view === "expenses" ? (
-          <PendingExpenseStudy
+        {isHistoryStudy && workspace.view === "expenses" ? (
+          <ExpenseHistoryStudy
             workspace={workspace}
             variant={
-              variant === "progress" || variant === "receipt"
-                ? variant
-                : "quiet"
+              historyVariants.find((option) => option.id === variant)?.id ??
+              "days"
             }
           />
-        ) : isRecordingStudy && workspace.view === "home" ? (
+        ) : workspace.view !== "home" ? (
+          <LedgerContent workspace={workspace} />
+        ) : isRecordingStudy ? (
           <RecordingButtonStudy
             key={variant}
             variant={
-              variant === "wave" || variant === "glass" ? variant : "pulse"
+              recordingVariants.find((option) => option.id === variant)?.id ??
+              "pulse-wave"
             }
           />
-        ) : workspace.view === "home" ? (
+        ) : isPendingStudy ? (
           <HomeCapturePrototype
             workspace={workspace}
-            manualVariant={
-              isManualStudy
-                ? variant === "floating" || variant === "dock"
-                  ? variant
-                  : "header"
-                : "dock"
-            }
-            variant={
-              variant === "split" || variant === "sidecar" ? variant : "panel"
+            pendingEntry={
+              <PendingExpenseStudy
+                variant={
+                  pendingVariants.find((option) => option.id === variant)?.id ??
+                  "receipt"
+                }
+              />
             }
           />
         ) : (
-          <LedgerContent workspace={workspace} />
+          <HomeCapturePrototype workspace={workspace} />
         )}
       </InsetWorkspace>
       <WorkspaceDialogs workspace={workspace} showBudgets={false} />

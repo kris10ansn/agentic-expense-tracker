@@ -1,19 +1,18 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { twMerge } from "tailwind-merge";
+import { PageHeader } from "../../components/PageHeader";
 import { categories, formatAmount, formatDate } from "../../lib/expenses";
 import { CaptureCollection } from "./CaptureControls";
-import { type DockVariant, FloatingCaptureDock } from "./FloatingCaptureDock";
-import {
-  type ManualEntryVariant,
-  ManualExpenseAction,
-} from "./ManualExpenseAction";
+import { FloatingCaptureDock } from "./FloatingCaptureDock";
+import { ManualExpenseAction } from "./ManualExpenseAction";
 import { PendingExpenseRow } from "./PendingExpenseRow";
 import type { PrototypeProps } from "./PrototypeControls";
 
 function RecentExpenses({
   workspace,
   className,
-}: PrototypeProps & { className?: string }) {
+  pendingEntry,
+}: PrototypeProps & { className?: string; pendingEntry: ReactNode }) {
   const recentExpenses = [...workspace.expenses]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 4);
@@ -23,9 +22,7 @@ function RecentExpenses({
       className={twMerge("min-h-0 overflow-y-auto", className)}
     >
       <ul className="divide-y divide-neutral-100">
-        <li>
-          <PendingExpenseRow />
-        </li>
+        <li>{pendingEntry}</li>
         {recentExpenses.map((expense) => (
           <li key={expense.id} className="flex items-center gap-4 py-4">
             <div className="min-w-0 flex-1">
@@ -55,12 +52,8 @@ function RecentExpenses({
 // Only the draft text and collection selection change; capture actions are inert.
 export function HomeCapturePrototype({
   workspace,
-  variant,
-  manualVariant = "dock",
-}: PrototypeProps & {
-  variant: DockVariant;
-  manualVariant?: ManualEntryVariant;
-}) {
+  pendingEntry = <PendingExpenseRow />,
+}: PrototypeProps & { pendingEntry?: ReactNode }) {
   const [text, setText] = useState("");
   const [collectionId, setCollectionId] = useState("");
   const selectedCollection =
@@ -71,38 +64,19 @@ export function HomeCapturePrototype({
   const captureProps = { text, setText };
   return (
     <>
-      <div className="mb-5 shrink-0 lg:mb-10">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Recent expenses
-        </h1>
-        {manualVariant === "header" && (
-          <ManualExpenseAction
-            variant="header"
-            onAdd={workspace.addExpense}
-            className="mt-5 lg:w-auto"
-          />
-        )}
-      </div>
+      <PageHeader title="Recent expenses" className="mb-5 lg:mb-10" />
       <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-2 lg:items-start lg:gap-12 xl:gap-20">
         <RecentExpenses
           workspace={workspace}
+          pendingEntry={pendingEntry}
           className="flex-1 lg:order-last"
         />
         <section
           aria-label="New expense"
           className="relative z-10 shrink-0 pt-5 lg:pt-0"
         >
-          {manualVariant === "floating" && (
-            <div className="mb-4 flex justify-end">
-              <ManualExpenseAction
-                variant="floating"
-                onAdd={workspace.addExpense}
-              />
-            </div>
-          )}
           <FloatingCaptureDock
             {...captureProps}
-            variant={variant}
             collection={
               <div className="flex flex-wrap items-center justify-between gap-x-2">
                 <CaptureCollection
@@ -110,13 +84,10 @@ export function HomeCapturePrototype({
                   value={selectedCollection}
                   onChange={setCollectionId}
                 />
-                {manualVariant === "dock" && (
-                  <ManualExpenseAction
-                    variant="dock"
-                    onAdd={workspace.addExpense}
-                    className="ml-auto"
-                  />
-                )}
+                <ManualExpenseAction
+                  onAdd={workspace.addExpense}
+                  className="ml-auto"
+                />
               </div>
             }
           />

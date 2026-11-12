@@ -20,22 +20,22 @@ bun run db:up
 bun run dev
 ```
 
-Open <http://localhost:5173> for the mobile expense workspace. It uses the selected Inset design with one Recent expenses heading, a compact capture dock, and bottom navigation. Desktop keeps a sidebar. The original AI screen is preserved at `/playground`.
+Open <http://localhost:5173> for the mobile expense workspace. It uses the selected Floating panel dock in the Inset workspace, with a single Recent expenses heading and bottom navigation. Manual entry stays inside the dock. Desktop keeps a sidebar. The original AI screen is preserved at `/playground`.
 
-Four visual studies are available. Use the arrows or the left and right arrow keys to compare variations, and the mobile Studies menu or desktop links to change studies:
+Pending expenses appear only on Home, above saved entries. They use the selected Input receipt design while waiting for AI and stay separate from saved data. The Expenses page lists saved expenses only, grouped by day with a daily total. Dates without expenses have no header. The history study compares day dividers, collapsible months, and month tabs.
 
-| Study                                                                             | Variants                       |
-| --------------------------------------------------------------------------------- | ------------------------------ |
-| [Floating docks](http://localhost:5173/?variant=panel)                            | `panel`, `split`, `sidecar`    |
-| [Manual entry](http://localhost:5173/prototypes/manual-entry?variant=header)      | `header`, `dock`, `floating`   |
-| [Pending expense](http://localhost:5173/prototypes/pending-expense?variant=quiet) | `quiet`, `progress`, `receipt` |
-| [Recording animations](http://localhost:5173/prototypes/recording?variant=pulse)  | `pulse`, `wave`, `glass`       |
+Three visual studies remain. Use their arrows or the left and right arrow keys to compare variations:
 
-Capture controls are visual prototypes. Text grows from a single line, and you can choose a collection, but recording, camera, gallery, and text submission do not access devices or create expenses. Manual-entry actions open the existing mock expense form. The animation study responds to holding the button with a pointer, Space, or Enter and supports reduced motion. It never records audio.
+| Study                                                                                      | Variants                                   |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| [Pending image receipts](http://localhost:5173/prototypes/pending-expense?variant=receipt) | `receipt`, `preview`, `attachments`        |
+| [Recording animations](http://localhost:5173/prototypes/recording?variant=pulse-wave)      | `pulse-wave`, `glass-lens`, `glass-ripple` |
 
-A mock pending expense stays above saved entries while waiting for AI. It is separate from saved data and does not change automatically. Settings is empty. Statistics and the older layout alternatives have been removed; earlier prototypes remain in branch history.
+The receipt study compares one photo, two photos, and a photo with a note using local sample receipt images. No files are uploaded. The recording study combines a breathing pulse with a waveform, and compares two new glass treatments. Hold with a pointer, Space, or Enter to preview the animation. Reduced motion is supported.
 
-Comparison controls appear only in development, at the top on mobile and at the bottom on desktop. Draft text and mock edits survive variant switches. Navigating between studies or refreshing resets the demo.
+Capture controls remain visual prototypes. Text grows from a single line, and you can choose a collection, but recording, camera, gallery, and text submission do not access devices or create expenses. Manual entry opens the existing mock expense form. Pending entries do not change automatically. Settings is empty.
+
+Comparison controls appear only in development, on study routes. Use their mobile Studies menu or desktop links to navigate. Draft text and mock edits survive variant switches. Navigating between studies or refreshing resets the demo. Previous dock, manual-entry, and pending-row alternatives remain in branch history.
 
 The demo uses mock data and supports creating, viewing, editing, and deleting expenses and collections. Each expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes reset when you refresh.
 

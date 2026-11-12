@@ -28,10 +28,10 @@ export type VariantOption<Id extends string> = {
 };
 
 export const prototypeStudies = [
-  { href: "/", label: "Floating docks" },
-  { href: "/prototypes/manual-entry", label: "Manual entry" },
-  { href: "/prototypes/pending-expense", label: "Pending expense" },
+  { href: "/", label: "Home" },
+  { href: "/prototypes/pending-expense", label: "Image receipts" },
   { href: "/prototypes/recording", label: "Record animations" },
+  { href: "/prototypes/expense-history", label: "Expense history" },
 ];
 
 export function PrototypeSwitcher<Id extends string>({

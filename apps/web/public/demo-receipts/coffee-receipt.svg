@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420">
+  <title>Sample coffee receipt for 74 kroner</title>
+  <rect width="300" height="420" fill="#dedfdc"/>
+  <path d="M38 20H262V397L252 403L242 397L232 403L222 397L212 403L202 397L192 403L182 397L172 403L162 397L152 403L142 397L132 403L122 397L112 403L102 397L92 403L82 397L72 403L62 397L52 403L42 397L38 400Z" fill="#fafaf7"/>
+  <g fill="#373d38" font-family="monospace" text-anchor="middle">
+    <text x="150" y="53" font-size="10" letter-spacing="3" fill="#828980">SAMPLE</text>
+    <text x="150" y="86" font-size="20" font-weight="700">CORNER COFFEE</text>
+    <text x="150" y="108" font-size="11">Oslo, Norway</text>
+    <text x="150" y="147" font-size="11">12 NOV 2026 · 08:15</text>
+  </g>
+  <g stroke="#b7bdb6" stroke-dasharray="3 3">
+    <path d="M58 166H242"/>
+    <path d="M58 259H242"/>
+    <path d="M58 312H242"/>
+  </g>
+  <g fill="#373d38" font-family="monospace" font-size="16">
+    <text x="58" y="195">Filter coffee</text><text x="242" y="195" text-anchor="end">39.00</text>
+    <text x="58" y="222">Cinnamon bun</text><text x="242" y="222" text-anchor="end">35.00</text>
+    <text x="58" y="288" font-weight="700">TOTAL NOK</text><text x="242" y="288" text-anchor="end" font-weight="700">74.00</text>
+    <text x="150" y="343" text-anchor="middle" font-size="11">See you tomorrow</text>
+    <text x="150" y="367" text-anchor="middle" font-size="9" fill="#828980">DEMO RECEIPT · NOT A PURCHASE</text>
+  </g>
+</svg>

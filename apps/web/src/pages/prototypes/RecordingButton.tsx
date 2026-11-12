@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import "./recording-button.css";
 
-export type RecordingVariant = "pulse" | "wave" | "glass";
+export type RecordingVariant = "pulse-wave" | "glass-lens" | "glass-ripple";
 
 type HoldSource =
   | { kind: "pointer"; id: number }
@@ -12,7 +12,7 @@ type HoldSource =
 
 // A held-state visual preview. This component never requests microphone access.
 export function RecordingButton({
-  variant = "pulse",
+  variant = "pulse-wave",
   className,
 }: {
   variant?: RecordingVariant;
@@ -36,7 +36,7 @@ export function RecordingButton({
   }, [release]);
 
   return (
-    <div className="flex shrink-0 flex-col items-center gap-4">
+    <div className="flex shrink-0 flex-col items-center gap-2">
       <button
         type="button"
         aria-label="Hold to preview recording"
@@ -82,29 +82,41 @@ export function RecordingButton({
           }
         }}
       >
-        <span className="recording-halo pointer-events-none absolute inset-0 -z-10 rounded-full" />
+        {variant === "pulse-wave" && (
+          <span className="recording-halo pointer-events-none absolute inset-0 -z-10 rounded-full" />
+        )}
+        {variant === "glass-ripple" && (
+          <span
+            aria-hidden="true"
+            className="recording-ripples pointer-events-none absolute inset-0 -z-10"
+          >
+            <span className="absolute inset-0 rounded-full" />
+            <span className="absolute inset-0 rounded-full" />
+          </span>
+        )}
         <span className="recording-face pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
-          {variant === "glass" && (
+          {variant !== "pulse-wave" && (
             <>
-              <span className="recording-glass-color absolute inset-0" />
-              <span className="recording-glass-reflection absolute inset-0" />
+              <span className="recording-glass-refraction absolute inset-0 rounded-full" />
+              <span className="recording-glass-reflection absolute inset-0 rounded-full" />
+              <span className="recording-glass-rim absolute inset-0 rounded-full" />
             </>
           )}
         </span>
         <Mic
-          className="recording-microphone relative size-7"
+          className="recording-microphone relative size-6"
           strokeWidth={1.7}
           aria-hidden="true"
         />
-        {variant === "wave" && (
+        {variant === "pulse-wave" && (
           <span
             aria-hidden="true"
             className="recording-wave pointer-events-none absolute inset-0 flex items-center justify-center gap-1"
           >
             <span className="h-3 w-1 rounded-full bg-white" />
-            <span className="h-6 w-1 rounded-full bg-white" />
-            <span className="h-8 w-1 rounded-full bg-white" />
             <span className="h-5 w-1 rounded-full bg-white" />
+            <span className="h-6 w-1 rounded-full bg-white" />
+            <span className="h-4 w-1 rounded-full bg-white" />
             <span className="h-3 w-1 rounded-full bg-white" />
           </span>
         )}
@@ -112,7 +124,7 @@ export function RecordingButton({
       <p
         id={statusId}
         aria-live="polite"
-        className="min-w-28 text-center text-xs font-medium text-neutral-600"
+        className="min-w-24 text-center text-xs font-medium text-neutral-600"
       >
         {hold !== null ? "Release to finish" : "Hold to record"}
       </p>
