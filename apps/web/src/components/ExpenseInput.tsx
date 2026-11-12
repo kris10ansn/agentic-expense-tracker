@@ -24,10 +24,10 @@ export function ExpenseInput({
 
   const action = useCallback(
     (data: FormData) => {
-      const text = data.get("text");
+      const text = data.get("text")?.toString().trim() ?? "";
 
-      if (text === null || text.toString().length === 0) {
-        console.error("ExpenseInput: no text provided!");
+      if (!text && files.length === 0) {
+        console.error("ExpenseInput: no input provided!");
         return;
       }
 

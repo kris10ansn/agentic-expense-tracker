@@ -19,12 +19,18 @@ export function App() {
   const status = useQuery(
     trpc.status.queryOptions(undefined, { retry: false }),
   );
-
   const addExpenses = useMutation(trpc.addExpenses.mutationOptions());
 
   const handleSubmit = useCallback<ExpenseInputProps["onSubmit"]>(
-    (text, _files) => {
-      addExpenses.mutate({ description: text });
+    (text, files) => {
+      const formData = new FormData();
+      formData.set("description", text);
+
+      for (const file of files) {
+        formData.append("files", file);
+      }
+
+      addExpenses.mutate(formData);
     },
     [addExpenses.mutate],
   );
