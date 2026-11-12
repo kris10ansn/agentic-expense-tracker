@@ -1,5 +1,12 @@
 import type React from "react";
-import { useLayoutEffect, useRef } from "react";
+import {
+  type ChangeEventHandler,
+  type MouseEventHandler,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { twMerge } from "tailwind-merge";
 
 export const TextArea = ({
@@ -53,18 +60,21 @@ export const TextInput = ({
   />
 );
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+const BUTTON_STYLES =
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: ButtonVariant;
-};
-
-const variants: Record<ButtonVariant, string> = {
+const BUTTON_VARIANTS = {
   primary: "bg-blue-600 text-white hover:bg-blue-700",
   secondary: "bg-gray-200 text-gray-900 hover:bg-gray-300",
   outline: "border border-gray-300 hover:bg-gray-50",
   ghost: "hover:bg-gray-100",
   danger: "bg-red-600 text-white hover:bg-red-700",
+} as const;
+
+type ButtonVariant = keyof typeof BUTTON_VARIANTS;
+
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
 };
 
 export function Button({
@@ -76,12 +86,68 @@ export function Button({
   return (
     <button
       type={type}
-      className={twMerge(
-        "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        variants[variant],
-        className,
-      )}
+      className={twMerge(BUTTON_STYLES, BUTTON_VARIANTS[variant], className)}
       {...props}
     />
   );
 }
+
+type FileInputButtonProps = {
+  fileList: File[];
+  onChange: (fileList: FileList) => void;
+  inputProps?: Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "ref" | "type" | "hidden" | "onClick" | "onChange"
+  >;
+} & Omit<ButtonProps, "onClick" | "onChange">;
+
+export const FileInputButton = ({
+  inputProps,
+  children,
+  fileList,
+  onChange,
+  ...props
+}: FileInputButtonProps) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleButtonClick = useCallback<MouseEventHandler>(() => {
+    inputRef.current?.click();
+  }, []);
+
+  const handleInputClick = useCallback<MouseEventHandler>((event) => {
+    event.stopPropagation(); // Prevent double handleButtonClick
+  }, []);
+
+  const handleChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    (event) => {
+      if (event.target.files === null) {
+        throw new Error("Event target has no files!");
+      }
+
+      onChange(event.target.files);
+    },
+    [onChange],
+  );
+
+  useEffect(() => {
+    if (inputRef.current) {
+      const dataTransfer = new DataTransfer();
+      fileList.forEach((file) => void dataTransfer.items.add(file));
+      inputRef.current.files = dataTransfer.files;
+    }
+  }, [fileList]);
+
+  return (
+    <Button onClick={handleButtonClick} {...props}>
+      <input
+        ref={inputRef}
+        type="file"
+        hidden
+        onClick={handleInputClick}
+        onChange={handleChange}
+        {...inputProps}
+      />
+      {children}
+    </Button>
+  );
+};

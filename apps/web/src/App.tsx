@@ -7,8 +7,11 @@ import {
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type React from "react";
-import { useState } from "react";
-import { ExpenseInput } from "./components/ExpenseInput";
+import { useCallback, useState } from "react";
+import {
+  ExpenseInput,
+  type ExpenseInputProps,
+} from "./components/ExpenseInput";
 import { type TRPC, trpc } from "./trpc";
 
 export function App() {
@@ -19,6 +22,13 @@ export function App() {
 
   const addExpenses = useMutation(trpc.addExpenses.mutationOptions());
 
+  const handleSubmit = useCallback<ExpenseInputProps["onSubmit"]>(
+    (text, _files) => {
+      addExpenses.mutate({ description: text });
+    },
+    [addExpenses.mutate],
+  );
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 py-16">
       <SectionCard>
@@ -27,9 +37,7 @@ export function App() {
         <pre>{JSON.stringify(addExpenses.data ?? "no-data", null, 4)}</pre>
 
         <ExpenseInput
-          onSubmit={(description: string) => {
-            addExpenses.mutate({ description });
-          }}
+          onSubmit={handleSubmit}
           fetching={addExpenses.isPending}
           value={value}
           setValue={setValue}
