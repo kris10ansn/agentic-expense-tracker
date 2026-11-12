@@ -1,0 +1,210 @@
+.recording-button {
+  --recording-press-duration: 220ms;
+  --recording-release-duration: 420ms;
+  --recording-pulse-duration: 1800ms;
+  --recording-wave-duration: 900ms;
+  --recording-glass-duration: 2800ms;
+  --recording-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --recording-spring: cubic-bezier(0.2, 1.4, 0.4, 1);
+
+  background: var(--color-blue-600);
+  transition:
+    transform var(--recording-release-duration) var(--recording-spring),
+    border-radius var(--recording-release-duration) var(--recording-settle),
+    background var(--recording-release-duration) ease;
+  -webkit-touch-callout: none;
+}
+
+.recording-button[data-held="true"] {
+  transform: scale(0.94);
+  transition-duration: var(--recording-press-duration);
+}
+
+.recording-halo {
+  background: var(--color-blue-100);
+  opacity: 0;
+  scale: 1;
+  transition:
+    opacity var(--recording-release-duration) ease,
+    scale var(--recording-release-duration) var(--recording-settle);
+}
+
+.recording-face {
+  background: inherit;
+}
+
+.recording-button:where([data-variant="pulse"])[data-held="true"]
+  .recording-halo {
+  opacity: 1;
+  scale: 1.35;
+  animation: var(--recording-pulse-animation, recording-breathe)
+    var(--recording-pulse-duration) ease-in-out infinite;
+}
+
+.recording-microphone,
+.recording-wave {
+  transition:
+    opacity var(--recording-press-duration) ease,
+    transform var(--recording-release-duration) var(--recording-spring);
+}
+
+.recording-wave {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.recording-button[data-variant="wave"][data-held="true"] {
+  border-radius: 32%;
+  background: var(--color-blue-700);
+}
+
+.recording-button[data-variant="wave"][data-held="true"] .recording-microphone {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.recording-button[data-held="true"] .recording-wave {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.recording-button[data-held="true"] .recording-wave span {
+  animation: var(--recording-wave-animation, recording-wave)
+    var(--recording-wave-duration) ease-in-out infinite alternate;
+  animation-delay: var(--recording-wave-delay, 0ms);
+}
+
+.recording-wave span:nth-child(2) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -3);
+}
+
+.recording-wave span:nth-child(3) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -1.5);
+}
+
+.recording-wave span:nth-child(4) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -2);
+}
+
+.recording-wave span:nth-child(5) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -5);
+}
+
+.recording-button[data-variant="glass"] {
+  background: var(--color-blue-50);
+  color: var(--color-blue-800);
+}
+
+.recording-button[data-variant="glass"] .recording-face {
+  border: 1px solid color-mix(in srgb, white 90%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, white 75%, transparent),
+    color-mix(in srgb, var(--color-blue-200) 45%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 1px white,
+    inset 0 -2px 4px color-mix(in srgb, var(--color-blue-400) 25%, transparent),
+    0 4px 12px color-mix(in srgb, var(--color-blue-900) 12%, transparent);
+  backdrop-filter: blur(calc(var(--spacing) * 2));
+}
+
+.recording-glass-color {
+  background:
+    radial-gradient(ellipse at 75% 80%, var(--color-blue-300), transparent 65%),
+    radial-gradient(ellipse at 15% 15%, white, transparent 65%);
+  opacity: 0.65;
+  transition: opacity var(--recording-release-duration) ease;
+}
+
+.recording-glass-reflection {
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    white 0%,
+    transparent 35%,
+    transparent 65%,
+    color-mix(in srgb, white 80%, transparent) 100%
+  );
+  opacity: 0.6;
+  transition: transform var(--recording-release-duration)
+    var(--recording-spring);
+}
+
+.recording-button[data-variant="glass"] .recording-halo {
+  background: radial-gradient(
+    circle,
+    var(--color-blue-100),
+    var(--color-blue-50) 65%,
+    transparent 70%
+  );
+}
+
+.recording-button[data-variant="glass"][data-held="true"] {
+  transform: scaleX(1.08) scaleY(0.94);
+  border-radius: 44% 56% 51% 49%;
+}
+
+.recording-button[data-variant="glass"][data-held="true"] .recording-halo {
+  opacity: 1;
+  scale: 1.7;
+}
+
+.recording-button[data-held="true"] .recording-glass-color {
+  opacity: 1;
+  animation: var(--recording-fluid-animation, recording-fluid)
+    var(--recording-glass-duration) ease-in-out infinite alternate;
+}
+
+.recording-button[data-held="true"] .recording-glass-reflection {
+  animation: var(--recording-reflection-animation, recording-reflection)
+    var(--recording-glass-duration) ease-in-out infinite alternate;
+}
+
+@keyframes recording-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes recording-wave {
+  from {
+    transform: scaleY(0.45);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes recording-fluid {
+  from {
+    transform: rotate(-20deg) scale(1.2);
+  }
+  to {
+    transform: rotate(35deg) scale(1.4);
+  }
+}
+
+@keyframes recording-reflection {
+  from {
+    transform: translate(-8%, -4%) rotate(-15deg);
+  }
+  to {
+    transform: translate(8%, 4%) rotate(20deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-button {
+    --recording-press-duration: 0ms;
+    --recording-release-duration: 0ms;
+    --recording-pulse-animation: none;
+    --recording-wave-animation: none;
+    --recording-fluid-animation: none;
+    --recording-reflection-animation: none;
+  }
+}

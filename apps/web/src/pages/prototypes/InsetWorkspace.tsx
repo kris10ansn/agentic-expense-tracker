@@ -2,7 +2,7 @@ import { ArrowUpRight, FolderOpen, House, List, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 import type { WorkspaceView } from "../../lib/expenses";
-import type { PrototypeProps } from "./PrototypeControls";
+import { type PrototypeProps, prototypeStudies } from "./PrototypeControls";
 
 const navigation = [
   { view: "home", label: "Home", icon: House },
@@ -65,7 +65,8 @@ function WorkspaceNavigation({
 export function InsetWorkspace({
   workspace,
   children,
-}: PrototypeProps & { children: ReactNode }) {
+  capture = false,
+}: PrototypeProps & { children: ReactNode; capture?: boolean }) {
   return (
     <div className="min-h-[calc(100dvh-var(--prototype-toolbar-height))] bg-neutral-100 text-neutral-900 lg:min-h-dvh lg:p-5">
       <aside className="fixed inset-y-8 left-5 hidden w-52 flex-col px-3 pt-3 lg:flex">
@@ -93,19 +94,18 @@ export function InsetWorkspace({
           ))}
         </div>
         {import.meta.env.DEV && (
-          <a
-            href={
-              window.location.pathname === "/prototypes/pending-expense"
-                ? "/"
-                : "/prototypes/pending-expense"
-            }
-            className="mt-6 flex min-h-11 items-center gap-1 px-3 text-xs text-neutral-500"
-          >
-            {window.location.pathname === "/prototypes/pending-expense"
-              ? "Capture layouts"
-              : "Pending expense study"}
-            <ArrowUpRight className="size-3" />
-          </a>
+          <div className="mt-6">
+            {prototypeStudies.map((study) => (
+              <a
+                key={study.href}
+                href={study.href}
+                className="flex min-h-10 items-center gap-1 px-3 text-xs text-neutral-500 hover:text-neutral-900"
+              >
+                {study.label}
+                <ArrowUpRight className="size-3" />
+              </a>
+            ))}
+          </div>
         )}
         <a
           href="/playground"
@@ -116,13 +116,11 @@ export function InsetWorkspace({
         </a>
       </aside>
       <div className="min-h-[calc(100dvh-var(--prototype-toolbar-height))] bg-white lg:ml-56 lg:min-h-[calc(100dvh-var(--spacing)*10)] lg:rounded-2xl lg:border lg:border-neutral-200">
-        <header className="flex h-(--mobile-header-height) items-center border-b border-neutral-100 px-5 lg:hidden">
-          <Brand />
-        </header>
         <main
           className={twMerge(
             "mx-auto max-w-6xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-28",
-            workspace.view === "home" &&
+            capture &&
+              workspace.view === "home" &&
               "flex h-(--home-height) min-h-0 flex-col overflow-y-auto pb-5 lg:h-auto lg:min-h-0 lg:overflow-visible lg:pb-28",
           )}
         >

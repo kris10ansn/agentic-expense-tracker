@@ -40,12 +40,10 @@
     16 +
     env(safe-area-inset-bottom)
   );
-  --mobile-header-height: calc(var(--spacing) * 14);
   --prototype-toolbar-height: 0px;
   --home-height: calc(
     100dvh -
     var(--mobile-navigation-height) -
-    var(--mobile-header-height) -
     var(--prototype-toolbar-height)
   );
 }

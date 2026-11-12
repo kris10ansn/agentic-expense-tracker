@@ -1,20 +1,14 @@
 import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { categories, formatAmount, formatDate } from "../../lib/expenses";
+import { CaptureCollection } from "./CaptureControls";
+import { type DockVariant, FloatingCaptureDock } from "./FloatingCaptureDock";
 import {
-  CaptureCollection,
-  CaptureTextArea,
-  MediaButton,
-  RecordButton,
-  SubmitDescriptionButton,
-} from "./CaptureControls";
+  type ManualEntryVariant,
+  ManualExpenseAction,
+} from "./ManualExpenseAction";
 import { PendingExpenseRow } from "./PendingExpenseRow";
-import type { PrototypeProps, Variant } from "./PrototypeControls";
-
-type CaptureProps = {
-  text: string;
-  setText: (text: string) => void;
-};
+import type { PrototypeProps } from "./PrototypeControls";
 
 function RecentExpenses({
   workspace,
@@ -28,16 +22,6 @@ function RecentExpenses({
       aria-label="Recent expenses"
       className={twMerge("min-h-0 overflow-y-auto", className)}
     >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">Recent expenses</h2>
-        <button
-          type="button"
-          onClick={() => workspace.changeView("expenses")}
-          className="min-h-11 cursor-pointer text-xs text-neutral-500 hover:text-neutral-900"
-        >
-          View all
-        </button>
-      </div>
       <ul className="divide-y divide-neutral-100">
         <li>
           <PendingExpenseRow />
@@ -67,90 +51,16 @@ function RecentExpenses({
   );
 }
 
-function DockCapture({ text, setText }: CaptureProps) {
-  return (
-    <div className="space-y-3">
-      <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 focus-within:border-blue-500">
-        <CaptureTextArea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-        />
-        <div className="flex items-center gap-1 px-1 pb-1">
-          <MediaButton kind="camera" />
-          <MediaButton kind="gallery" />
-          <div className="ml-auto">
-            <SubmitDescriptionButton />
-          </div>
-        </div>
-      </div>
-      <RecordButton />
-    </div>
-  );
-}
-
-function VoiceCapture({ text, setText }: CaptureProps) {
-  return (
-    <div className="flex flex-col gap-5 lg:gap-8">
-      <div className="flex items-end rounded-xl border border-neutral-200 bg-neutral-50/50 focus-within:border-blue-500">
-        <CaptureTextArea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          className="min-w-0 flex-1"
-        />
-        <div className="p-1">
-          <SubmitDescriptionButton />
-        </div>
-      </div>
-      <div>
-        <div className="flex items-center justify-evenly gap-3 py-1">
-          <MediaButton kind="camera" stacked />
-          <RecordButton
-            round
-            className="size-24 ring-8 ring-blue-50 lg:size-28"
-          />
-          <MediaButton kind="gallery" stacked />
-        </div>
-        <p className="mt-4 text-center text-xs font-medium text-neutral-700">
-          Hold to record
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function OneHandCapture({ text, setText }: CaptureProps) {
-  return (
-    <div className="flex items-end gap-3">
-      <div className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-neutral-50/50 focus-within:border-blue-500">
-        <div className="flex items-start">
-          <CaptureTextArea
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            className="h-28 min-w-0 flex-1 px-3"
-          />
-          <div className="pt-1">
-            <SubmitDescriptionButton />
-          </div>
-        </div>
-        <div className="flex items-center px-1 pb-1">
-          <MediaButton kind="camera" className="flex-1 px-1" />
-          <MediaButton kind="gallery" className="flex-1 px-1" />
-        </div>
-      </div>
-      <div className="flex shrink-0 flex-col items-center gap-2 pb-1">
-        <RecordButton round className="size-20" />
-        <p className="text-xs font-medium text-neutral-700">Hold to record</p>
-      </div>
-    </div>
-  );
-}
-
-// Three visual capture placements inside the chosen inset workspace.
+// Selected voice-first capture layout inside the inset workspace.
 // Only the draft text and collection selection change; capture actions are inert.
 export function HomeCapturePrototype({
   workspace,
   variant,
-}: PrototypeProps & { variant: Variant }) {
+  manualVariant = "dock",
+}: PrototypeProps & {
+  variant: DockVariant;
+  manualVariant?: ManualEntryVariant;
+}) {
   const [text, setText] = useState("");
   const [collectionId, setCollectionId] = useState("");
   const selectedCollection =
@@ -163,8 +73,15 @@ export function HomeCapturePrototype({
     <>
       <div className="mb-5 shrink-0 lg:mb-10">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Log an expense
+          Recent expenses
         </h1>
+        {manualVariant === "header" && (
+          <ManualExpenseAction
+            variant="header"
+            onAdd={workspace.addExpense}
+            className="mt-5 lg:w-auto"
+          />
+        )}
       </div>
       <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-2 lg:items-start lg:gap-12 xl:gap-20">
         <RecentExpenses
@@ -173,18 +90,36 @@ export function HomeCapturePrototype({
         />
         <section
           aria-label="New expense"
-          className="shrink-0 bg-white pt-3 lg:pt-0"
+          className="relative z-10 shrink-0 pt-5 lg:pt-0"
         >
-          <div className="mb-2">
-            <CaptureCollection
-              collections={workspace.collections}
-              value={selectedCollection}
-              onChange={setCollectionId}
-            />
-          </div>
-          {variant === "dock" && <DockCapture {...captureProps} />}
-          {variant === "voice" && <VoiceCapture {...captureProps} />}
-          {variant === "one-hand" && <OneHandCapture {...captureProps} />}
+          {manualVariant === "floating" && (
+            <div className="mb-4 flex justify-end">
+              <ManualExpenseAction
+                variant="floating"
+                onAdd={workspace.addExpense}
+              />
+            </div>
+          )}
+          <FloatingCaptureDock
+            {...captureProps}
+            variant={variant}
+            collection={
+              <div className="flex flex-wrap items-center justify-between gap-x-2">
+                <CaptureCollection
+                  collections={workspace.collections}
+                  value={selectedCollection}
+                  onChange={setCollectionId}
+                />
+                {manualVariant === "dock" && (
+                  <ManualExpenseAction
+                    variant="dock"
+                    onAdd={workspace.addExpense}
+                    className="ml-auto"
+                  />
+                )}
+              </div>
+            }
+          />
         </section>
       </div>
     </>

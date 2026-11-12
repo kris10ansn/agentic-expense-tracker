@@ -21,16 +21,17 @@ export type PrototypeWorkspace = ExpenseWorkspace & {
   filteredExpenses: Expense[];
 };
 export type PrototypeProps = { workspace: PrototypeWorkspace };
-export type Variant = "dock" | "voice" | "one-hand";
-export type VariantOption<Id extends string = Variant> = {
+export type VariantOption<Id extends string> = {
   id: Id;
   name: string;
   description: string;
 };
-export const captureVariants: VariantOption[] = [
-  { id: "dock", name: "Dock", description: "Full-width recording" },
-  { id: "voice", name: "Voice first", description: "Central recording" },
-  { id: "one-hand", name: "One hand", description: "Thumb-side recording" },
+
+export const prototypeStudies = [
+  { href: "/", label: "Floating docks" },
+  { href: "/prototypes/manual-entry", label: "Manual entry" },
+  { href: "/prototypes/pending-expense", label: "Pending expense" },
+  { href: "/prototypes/recording", label: "Record animations" },
 ];
 
 export function PrototypeSwitcher<Id extends string>({
@@ -103,7 +104,21 @@ export function PrototypeSwitcher<Id extends string>({
           {current?.name}
         </div>
         <p className="text-xs text-white/50 lg:mt-1">
-          <span className="lg:hidden">Visual study</span>
+          <select
+            aria-label="Choose prototype study"
+            defaultValue=""
+            onChange={(event) => window.location.assign(event.target.value)}
+            className="min-h-11 w-20 cursor-pointer bg-neutral-900 text-xs text-neutral-400 lg:hidden"
+          >
+            <option value="" disabled>
+              Studies
+            </option>
+            {prototypeStudies.map((study) => (
+              <option key={study.href} value={study.href}>
+                {study.label}
+              </option>
+            ))}
+          </select>
           <span className="hidden lg:inline">{current?.description}</span>
         </p>
       </div>

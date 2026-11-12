@@ -20,17 +20,22 @@ bun run db:up
 bun run dev
 ```
 
-Open <http://localhost:5173> to compare three home-screen capture layouts in the selected Inset workspace:
+Open <http://localhost:5173> for the mobile expense workspace. It uses the selected Inset design with one Recent expenses heading, a compact capture dock, and bottom navigation. Desktop keeps a sidebar. The original AI screen is preserved at `/playground`.
 
-- [Dock](http://localhost:5173/?variant=dock): text, camera, and gallery above a wide record button.
-- [Voice first](http://localhost:5173/?variant=voice): a central record button between camera and gallery.
-- [One hand](http://localhost:5173/?variant=one-hand): a compact composer with recording at the lower right.
+Four visual studies are available. Use the arrows or the left and right arrow keys to compare variations, and the mobile Studies menu or desktop links to change studies:
 
-The capture controls are visual prototypes. You can enter draft text and choose a collection, but they do not record audio, open the camera or gallery, or create expenses. Mobile navigation has Home, Expenses, Collections, and an empty Settings page. Desktop uses a sidebar. The earlier layout alternatives and statistics have been removed.
+| Study                                                                             | Variants                       |
+| --------------------------------------------------------------------------------- | ------------------------------ |
+| [Floating docks](http://localhost:5173/?variant=panel)                            | `panel`, `split`, `sidecar`    |
+| [Manual entry](http://localhost:5173/prototypes/manual-entry?variant=header)      | `header`, `dock`, `floating`   |
+| [Pending expense](http://localhost:5173/prototypes/pending-expense?variant=quiet) | `quiet`, `progress`, `receipt` |
+| [Recording animations](http://localhost:5173/prototypes/recording?variant=pulse)  | `pulse`, `wave`, `glass`       |
 
-Compare three pending AI expense rows at [the pending expense study](http://localhost:5173/prototypes/pending-expense?variant=quiet). The variants are `quiet`, `progress`, and `receipt`. Each displays a mock entry above saved expenses while waiting for AI. The pending entry is separate from saved data and does not change automatically.
+Capture controls are visual prototypes. Text grows from a single line, and you can choose a collection, but recording, camera, gallery, and text submission do not access devices or create expenses. Manual-entry actions open the existing mock expense form. The animation study responds to holding the button with a pointer, Space, or Enter and supports reduced motion. It never records audio.
 
-Use the comparison arrows or the left and right arrow keys to switch variants. The comparison controls appear only in development, at the top on mobile and at the bottom on desktop. Draft text and mock edits survive variant switches.
+A mock pending expense stays above saved entries while waiting for AI. It is separate from saved data and does not change automatically. Settings is empty. Statistics and the older layout alternatives have been removed; earlier prototypes remain in branch history.
+
+Comparison controls appear only in development, at the top on mobile and at the bottom on desktop. Draft text and mock edits survive variant switches. Navigating between studies or refreshing resets the demo.
 
 The demo uses mock data and supports creating, viewing, editing, and deleting expenses and collections. Each expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes reset when you refresh.
 
