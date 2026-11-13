@@ -4,7 +4,7 @@ import {
   ChevronDown,
   FolderOpen,
   Images,
-  SquarePen,
+  SquarePlus,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { twMerge } from "tailwind-merge";
@@ -20,7 +20,11 @@ import { createTranscript, useSpeech } from "../../hooks/useSpeech";
 import type { Collection } from "../../lib/expenses";
 import { RecordingButton } from "./RecordingButton";
 
-export type CaptureDockData = { description: string; files: File[] };
+export type CaptureDockData = {
+  collectionId: string;
+  description: string;
+  files: File[];
+};
 
 type CaptureDockProps = {
   collections: Collection[];
@@ -46,6 +50,7 @@ export function CaptureDock({
   );
 
   const speech = useSpeech({ onResults: handleSpeechResults });
+  const [collectionId, setCollectionId] = useState("");
 
   const handleRecordingStart = useCallback(
     () => speech.startRecording?.(),
@@ -67,13 +72,12 @@ export function CaptureDock({
   );
 
   const submit = useCallback(() => {
-    onSubmit({ description, files });
+    onSubmit({ collectionId, description, files });
 
     setDescription("");
     setFiles([]);
-  }, [onSubmit, files, description]);
+  }, [onSubmit, files, description, collectionId]);
 
-  const [collectionId, setCollectionId] = useState("");
   const selectedCollection =
     collections.find((item) => item.id === collectionId)?.id ??
     collections[0]?.id ??
@@ -99,7 +103,7 @@ export function CaptureDock({
           onClick={() => onManualEntry(collectionId)}
           className="ml-auto shrink-0 gap-2 rounded-lg bg-blue-50 px-2 text-xs text-blue-700 hover:bg-blue-100"
         >
-          <SquarePen className="size-4" />
+          <SquarePlus className="size-4" />
           Manual
         </Button>
       </div>
@@ -112,7 +116,9 @@ export function CaptureDock({
       </div>
 
       <DescriptionComposer
-        disabled={files.length === 0 && (!selectedCollection || !description)}
+        disabled={
+          files.length === 0 && !(collections.length > 0 && description)
+        }
         value={description}
         onChange={setDescription}
         onSubmit={submit}
@@ -125,7 +131,6 @@ export function CaptureDock({
           onChange={handleFileChange}
         />
         <RecordingButton
-          disabled={!selectedCollection}
           onRecordingStart={handleRecordingStart}
           onRecordingStop={handleRecordingStop}
         />
