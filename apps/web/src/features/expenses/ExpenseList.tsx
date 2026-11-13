@@ -26,41 +26,52 @@ export function ExpenseList({
   );
   return (
     <ul className={twMerge("divide-y divide-neutral-100", className)}>
-      {expenses.map((expense) => (
-        <li key={expense.id}>
-          <button
-            type="button"
-            aria-label={`View ${expense.title}`}
-            onClick={() => onSelectExpense(expense)}
-            className="flex min-h-16 w-full cursor-pointer items-center gap-4 py-3 text-left hover:bg-neutral-50"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">
-                {expense.title}
+      {expenses.map((expense) => {
+        const createdDate = formatDate(expense.createdAt);
+        const purchasedDate = formatDate(expense.purchasedAt);
+
+        return (
+          <li key={expense.id}>
+            <button
+              type="button"
+              aria-label={`View ${expense.title}`}
+              onClick={() => onSelectExpense(expense)}
+              className="flex min-h-16 w-full cursor-pointer items-center gap-4 py-3 text-left hover:bg-neutral-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">
+                  {expense.title}
+                </span>
+                <span className="mt-1 block truncate text-xs text-neutral-400">
+                  {isKnownCategory(expense.category)
+                    ? categories[expense.category].label
+                    : expense.category}
+                  {showDate && <> · {purchasedDate}</>}
+                  {showDate && createdDate !== purchasedDate && (
+                    <>
+                      {" "}
+                      · <span className="italic"> Added: {createdDate}</span>
+                    </>
+                  )}
+                </span>
               </span>
-              <span className="mt-1 block truncate text-xs text-neutral-400">
-                {isKnownCategory(expense.category)
-                  ? categories[expense.category].label
-                  : expense.category}
-                {showDate && <> · {formatDate(expense.purchasedAt)}</>}
+              {!showDate && (
+                <span className="hidden w-40 shrink-0 truncate text-xs text-neutral-400 md:block">
+                  {expense.collectionId === null
+                    ? "No collection"
+                    : collectionNames.get(expense.collectionId)}
+                </span>
+              )}
+              <span className="shrink-0 text-right text-sm whitespace-nowrap tabular-nums">
+                {formatAmount(expense.amountInCents, 2)}
+                <span className="ml-1 text-xs text-neutral-400">
+                  {expense.currency}
+                </span>
               </span>
-            </span>
-            {!showDate && (
-              <span className="hidden w-40 shrink-0 truncate text-xs text-neutral-400 md:block">
-                {expense.collectionId === null
-                  ? "No collection"
-                  : collectionNames.get(expense.collectionId)}
-              </span>
-            )}
-            <span className="shrink-0 text-right text-sm whitespace-nowrap tabular-nums">
-              {formatAmount(expense.amountInCents, 2)}
-              <span className="ml-1 text-xs text-neutral-400">
-                {expense.currency}
-              </span>
-            </span>
-          </button>
-        </li>
-      ))}
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

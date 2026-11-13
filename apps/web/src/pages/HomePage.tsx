@@ -17,9 +17,9 @@ export function HomePage() {
   );
 
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
-  const recentExpenses = [...expenses]
-    .sort((a, b) => b.purchasedAt.getTime() - a.purchasedAt.getTime())
-    .slice(0, RECENT_EXPENSE_LIMIT);
+  const recentExpenses = [...expenses].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
 
   const handleSubmit = useCallback(
     ({ description, files }: CaptureDockData) => {
