@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { twMerge } from "tailwind-merge";
 import type {
   Collection,
   CollectionInput,
@@ -164,12 +165,15 @@ export function WorkspaceProvider({
         role="status"
         className="pointer-events-none fixed inset-x-4 bottom-40 z-40 flex justify-center"
       >
-        {notice && (
-          <div className="flex max-w-full items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg">
-            <Check className="size-4 shrink-0" />
-            {notice}
-          </div>
-        )}
+        <div
+          className={twMerge(
+            "flex max-w-full items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white opacity-0 shadow-lg transition-opacity",
+            notice && "opacity-100",
+          )}
+        >
+          <Check className="size-4 shrink-0" />
+          {notice}
+        </div>
       </div>
     </WorkspaceContext>
   );
