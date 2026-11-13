@@ -8,8 +8,35 @@ import {
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const expenseCollectionTable = pgTable("expense_collections", {
+  id: uuid().primaryKey().defaultRandom().notNull(),
+  title: varchar({ length: 64 }).notNull(),
+  color: varchar({ length: 7 }).notNull(),
+});
+
+export const collectionSchema = createSelectSchema(expenseCollectionTable);
+export const collectionsSchema = z.array(collectionSchema);
+export const collectionIdSchema = collectionSchema.pick({ id: true });
+
+export const collectionCreateSchema = createInsertSchema(
+  expenseCollectionTable,
+  {
+    title: (schema) => schema.trim().min(1),
+    color: (schema) => schema.regex(/^#[0-9a-fA-F]{6}$/),
+  },
+).omit({ id: true });
+
+export const collectionUpdateSchema = collectionCreateSchema
+  .partial()
+  .extend({ id: collectionIdSchema.shape.id })
+  .refine((input) => input.title !== undefined || input.color !== undefined, {
+    message: "Provide a title or color to update.",
+  });
+
 export const expensesTable = pgTable("expenses", {
   id: uuid().primaryKey().defaultRandom().notNull(),
+
+  collectionId: uuid().references(() => expenseCollectionTable.id),
 
   title: varchar({ length: 64 }).notNull(),
   amountInCents: integer().notNull(),
