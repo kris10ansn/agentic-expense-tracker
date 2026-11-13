@@ -1,4 +1,3 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import type {
@@ -7,7 +6,11 @@ import type {
   Expense,
   ExpenseInput,
 } from "../../lib/expenses";
-import { trpc } from "../../trpc";
+import {
+  useCreateCollection,
+  useDeleteCollection,
+  useUpdateCollection,
+} from "../collections/mutations";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 
 export type DialogState =
@@ -38,47 +41,9 @@ export function WorkspaceProvider({
   data: WorkspaceData;
   children: ReactNode;
 }) {
-  const queryClient = useQueryClient();
-
-  const updateCollection = useMutation(
-    trpc.collections.update.mutationOptions({
-      onSuccess: (updated) => {
-        const queryKey = trpc.collections.list.queryKey();
-
-        queryClient.setQueryData(queryKey, (collections) =>
-          collections?.map((c) => (c.id === updated.id ? updated : c)),
-        );
-
-        return queryClient.invalidateQueries({ queryKey });
-      },
-    }),
-  );
-  const createCollection = useMutation(
-    trpc.collections.create.mutationOptions({
-      onSuccess: (created) => {
-        const queryKey = trpc.collections.list.queryKey();
-
-        queryClient.setQueryData(queryKey, (collections) =>
-          collections ? [...collections, created] : undefined,
-        );
-
-        return queryClient.invalidateQueries({ queryKey });
-      },
-    }),
-  );
-  const deleteCollection = useMutation(
-    trpc.collections.delete.mutationOptions({
-      onSuccess: (deleted) => {
-        const queryKey = trpc.collections.list.queryKey();
-
-        queryClient.setQueryData(queryKey, (collections) =>
-          collections?.filter((collection) => collection.id !== deleted.id),
-        );
-
-        return queryClient.invalidateQueries({ queryKey });
-      },
-    }),
-  );
+  const updateCollection = useUpdateCollection();
+  const createCollection = useCreateCollection();
+  const deleteCollection = useDeleteCollection();
 
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
 
@@ -127,11 +92,11 @@ export function WorkspaceProvider({
 
   function saveCollection(input: CollectionInput) {
     if (dialog.kind !== "collection") return;
+
     const { collection } = dialog;
-
     const isCreate = collection === null;
-    const message = isCreate ? "Collection created." : "Collection updated.";
 
+    const message = isCreate ? "Collection created." : "Collection updated.";
     const action = () =>
       isCreate
         ? createCollection.mutateAsync(input)
