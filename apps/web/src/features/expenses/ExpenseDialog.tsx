@@ -5,10 +5,13 @@ import { Button, FormField, Select, TextInput } from "../../components/inputs";
 import {
   type Collection,
   categories,
+  currencies,
   type Expense,
   type ExpenseInput,
-  isCategory,
+  isKnownCategory,
+  toDateInput,
 } from "../../lib/expenses";
+import { parseExpenseForm } from "./expense-form";
 
 export function ExpenseDialog({
   expense,
@@ -35,29 +38,18 @@ export function ExpenseDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const title = String(data.get("title") ?? "").trim();
-    const amountInCents = Math.round(Number(data.get("amountInNok")) * 100);
-    const category = String(data.get("category"));
-    const date = String(data.get("date"));
-    const collectionId = String(data.get("collectionId"));
-    if (
-      !title ||
-      !Number.isSafeInteger(amountInCents) ||
-      !isCategory(category) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !collections.some((item) => item.id === collectionId)
-    ) {
-      setValidationError("Enter a name, an amount, a date, and a collection.");
+    const input = parseExpenseForm({
+      data: new FormData(event.currentTarget),
+      expense,
+      collections,
+    });
+    if (!input) {
+      setValidationError(
+        "Enter a valid name, amount, currency, category, and date.",
+      );
       return;
     }
-    onSave({
-      title,
-      amountInCents,
-      category,
-      date,
-      collectionId,
-    });
+    onSave(input);
   }
 
   return (
@@ -77,20 +69,20 @@ export function ExpenseDialog({
               name="title"
               placeholder="e.g. Coffee at Kaffebrenneriet"
               defaultValue={expense?.title ?? ""}
-              maxLength={100}
+              maxLength={64}
               required
             />
           </FormField>
           <div className="grid grid-cols-2 gap-4">
-            <FormField htmlFor="expense-amount" label="Amount in NOK">
+            <FormField htmlFor="expense-amount" label="Amount">
               <TextInput
                 id="expense-amount"
-                name="amountInNok"
+                name="amount"
                 type="number"
                 inputMode="decimal"
                 placeholder="0.00"
-                min="-100000000"
-                max="100000000"
+                min="-21474836.48"
+                max="21474836.47"
                 step="0.01"
                 defaultValue={expense ? expense.amountInCents / 100 : ""}
                 required
@@ -101,19 +93,37 @@ export function ExpenseDialog({
                 id="expense-date"
                 name="date"
                 type="date"
-                defaultValue={expense?.date ?? defaultDate}
+                defaultValue={
+                  expense ? toDateInput(expense.purchasedAt) : defaultDate
+                }
                 min="2000-01-01"
                 max="2100-12-31"
                 required
               />
             </FormField>
           </div>
+          <FormField htmlFor="expense-currency" label="Currency">
+            <Select
+              id="expense-currency"
+              name="currency"
+              defaultValue={expense?.currency ?? "NOK"}
+            >
+              {Object.entries(currencies).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
           <FormField htmlFor="expense-category" label="Category">
             <Select
               id="expense-category"
               name="category"
               defaultValue={expense?.category ?? "groceries"}
             >
+              {expense && !isKnownCategory(expense.category) && (
+                <option value={expense.category}>{expense.category}</option>
+              )}
               {Object.entries(categories).map(([id, item]) => (
                 <option key={id} value={id}>
                   {item.label}
@@ -129,12 +139,14 @@ export function ExpenseDialog({
             <Select
               id="expense-collectionId"
               name="collectionId"
-              defaultValue={expense?.collectionId ?? defaultCollectionId}
-              required
+              defaultValue={
+                expense ? (expense.collectionId ?? "") : defaultCollectionId
+              }
             >
+              <option value="">No collection</option>
               {collections.map((collection) => (
                 <option key={collection.id} value={collection.id}>
-                  {collection.name}
+                  {collection.title}
                 </option>
               ))}
             </Select>

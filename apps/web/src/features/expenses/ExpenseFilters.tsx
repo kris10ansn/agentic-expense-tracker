@@ -51,7 +51,7 @@ export function ExpenseFilters({
           )}
         {collections.map((collection) => (
           <option key={collection.id} value={collection.id}>
-            {collection.name}
+            {collection.title}
           </option>
         ))}
       </Select>

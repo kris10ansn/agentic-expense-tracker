@@ -43,7 +43,11 @@ function MonthSection({
         </h2>
         <span className="shrink-0 text-xs whitespace-nowrap text-neutral-500 tabular-nums">
           <span className="sr-only">Monthly total </span>
-          {formatAmount(month.totalInCents, 2)} kr
+          {month.totals.map(({ currency, amountInCents }) => (
+            <span key={currency} className="block">
+              {formatAmount(amountInCents, 2)} {currency}
+            </span>
+          ))}
         </span>
       </summary>
       <DaySections
@@ -89,7 +93,11 @@ function DaySections({ expenses, collections, onSelectExpense }: HistoryProps) {
             </h3>
             <p className="shrink-0 text-xs font-medium whitespace-nowrap text-neutral-600 tabular-nums">
               <span className="sr-only">Daily total </span>
-              {formatAmount(day.totalInCents, 2)} kr
+              {day.totals.map(({ currency, amountInCents }) => (
+                <span key={currency} className="block">
+                  {formatAmount(amountInCents, 2)} {currency}
+                </span>
+              ))}
             </p>
           </div>
           <ExpenseList

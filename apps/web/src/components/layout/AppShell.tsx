@@ -77,7 +77,7 @@ export function AppShell({
                 className="size-1.5 shrink-0 rounded-full"
                 style={{ background: collection.color }}
               />
-              <span className="truncate">{collection.name}</span>
+              <span className="truncate">{collection.title}</span>
             </Link>
           ))}
         </div>

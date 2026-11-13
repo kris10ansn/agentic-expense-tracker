@@ -38,7 +38,7 @@ export function ExpensesPage() {
               )
             }
           >
-            {collections.length ? "Add expense" : "New collection"}
+            Add expense
           </AddButton>
         }
       />

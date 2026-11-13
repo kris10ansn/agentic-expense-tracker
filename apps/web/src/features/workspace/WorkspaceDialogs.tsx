@@ -5,18 +5,10 @@ import type {
   Expense,
   ExpenseInput,
 } from "../../lib/expenses";
+import { toDateInput } from "../../lib/expenses";
 import { CollectionDialog } from "../collections/CollectionDialog";
 import { ExpenseDialog } from "../expenses/ExpenseDialog";
 import type { DialogState } from "./WorkspaceProvider";
-
-function today() {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
-}
 
 export function WorkspaceDialogs({
   dialog,
@@ -55,8 +47,8 @@ export function WorkspaceDialogs({
           {...shared}
           expense={dialog.expense}
           collections={collections}
-          defaultCollectionId={dialog.collectionId ?? collections[0]?.id ?? ""}
-          defaultDate={today()}
+          defaultCollectionId={dialog.collectionId ?? ""}
+          defaultDate={toDateInput(new Date())}
           onSave={onSaveExpense}
           onDelete={(expense) => onChange({ kind: "delete-expense", expense })}
         />
@@ -83,8 +75,12 @@ export function WorkspaceDialogs({
       return (
         <ConfirmDialog
           {...shared}
-          title={`Delete ${dialog.collection.name}?`}
-          description={`This will delete the collection and all ${expenses.filter((item) => item.collectionId === dialog.collection.id).length} of its expenses across every month. This can't be undone.`}
+          title={`Delete ${dialog.collection.title}?`}
+          description={
+            expenses.some((item) => item.collectionId === dialog.collection.id)
+              ? "Move or remove this collection's expenses before deleting it."
+              : "This will permanently delete the collection. This can't be undone."
+          }
           onConfirm={() => onDeleteCollection(dialog.collection)}
         />
       );

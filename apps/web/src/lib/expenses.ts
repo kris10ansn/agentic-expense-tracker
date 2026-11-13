@@ -1,26 +1,20 @@
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { TRPC } from "../trpc";
 
-type ExtractedExpense = inferOutput<
-  TRPC["expenses"]["addAgentic"]
->["expenses"][number];
+export type Expense = inferOutput<TRPC["expenses"]["list"]>[number];
+export type Collection = inferOutput<TRPC["collections"]["list"]>[number];
+export type ExpenseInput = inferInput<TRPC["expenses"]["create"]>;
+export type CollectionInput = inferInput<TRPC["collections"]["create"]>;
 
-export type Category = keyof typeof categories;
-export type Expense = Pick<ExtractedExpense, "title" | "amountInCents"> & {
-  id: string;
-  category: Category;
-  date: string;
-  collectionId: string;
-};
-export type Collection = {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-};
+export const currencies = {
+  NOK: "NOK",
+  EUR: "EUR",
+  USD: "USD",
+} satisfies Record<ExpenseInput["currency"], string>;
 
-export type ExpenseInput = Omit<Expense, "id">;
-export type CollectionInput = Omit<Collection, "id">;
+export function isCurrency(value: string): value is ExpenseInput["currency"] {
+  return Object.hasOwn(currencies, value);
+}
 
 export const categories = {
   groceries: {
@@ -42,13 +36,15 @@ export const categories = {
     label: "Other",
   },
 } satisfies Record<
-  ExtractedExpense["category"],
+  Expense["category"],
   {
     label: string;
   }
 >;
 
-export function isCategory(value: string): value is Category {
+export function isKnownCategory(
+  value: string,
+): value is keyof typeof categories {
   return Object.hasOwn(categories, value);
 }
 
@@ -66,11 +62,19 @@ export function formatAmount(amountInCents: number, fractionDigits = 0) {
   }).format(amountInCents / 100);
 }
 
-export function formatDate(date: string) {
+export function toDateInput(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+export function formatDate(date: Date) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
-  }).format(new Date(`${date}T12:00:00`));
+  }).format(date);
 }
 
 export function formatMonth(month: string) {

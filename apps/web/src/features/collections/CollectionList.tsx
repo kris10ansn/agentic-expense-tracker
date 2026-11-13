@@ -31,7 +31,7 @@ export function CollectionList({
             </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium">
-                {collection.name}
+                {collection.title}
               </span>
               <span className="mt-1 block text-xs text-neutral-500">
                 {
@@ -45,13 +45,13 @@ export function CollectionList({
             <ChevronRight className="ml-auto hidden size-4 text-neutral-400 sm:block" />
           </Link>
           <IconButton
-            aria-label={`Edit ${collection.name} collection`}
+            aria-label={`Edit ${collection.title} collection`}
             onClick={() => onEdit(collection)}
           >
             <Pencil className="size-4" />
           </IconButton>
           <IconButton
-            aria-label={`Delete ${collection.name} collection`}
+            aria-label={`Delete ${collection.title} collection`}
             className="hover:bg-red-50 hover:text-red-700"
             onClick={() => onDelete(collection)}
           >

@@ -44,7 +44,7 @@ Capture controls remain visual only. Text grows from a single line, and you can 
 
 TanStack Query and the tRPC options proxy are already configured. Add list queries in `WorkspaceLayout`, pass their results to `WorkspaceProvider`, and supply mutation callbacks to `WorkspaceDialogs`. Invalidate the affected queries after writes. Components receive ordinary data and callbacks, so they do not need to know how records are fetched.
 
-The backend exposes AI extraction and saved expense and collection CRUD. The UI derives extraction fields and categories from the router type; saved record types in `src/lib/expenses.ts` still use the original UI shape and need to be aligned with the persisted endpoints before integration.
+The backend exposes AI extraction and saved expense and collection CRUD. The UI derives extraction fields and categories from the router type; record and create-input types in `src/lib/expenses.ts` are inferred from the CRUD endpoints. The UI uses collection titles, purchase timestamps, optional collections, and totals grouped by currency.
 
 The empty workspace runs with `bun run dev:web` alone. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
 

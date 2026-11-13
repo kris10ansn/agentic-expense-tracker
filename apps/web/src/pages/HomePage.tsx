@@ -18,7 +18,7 @@ export function HomePage() {
 
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
   const recentExpenses = [...expenses]
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => b.purchasedAt.getTime() - a.purchasedAt.getTime())
     .slice(0, RECENT_EXPENSE_LIMIT);
 
   const handleSubmit = useCallback(

@@ -42,15 +42,11 @@ export function WorkspaceProvider({
   }
 
   function addExpense(collectionId?: string) {
-    openDialog(
-      data.collections.length
-        ? {
-            kind: "expense",
-            expense: null,
-            ...(collectionId ? { collectionId } : {}),
-          }
-        : { kind: "collection", collection: null },
-    );
+    openDialog({
+      kind: "expense",
+      expense: null,
+      ...(collectionId ? { collectionId } : {}),
+    });
   }
 
   function saveExpense(input: ExpenseInput) {

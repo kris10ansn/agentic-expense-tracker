@@ -5,6 +5,7 @@ import {
   type Expense,
   formatAmount,
   formatDate,
+  isKnownCategory,
 } from "../../lib/expenses";
 
 export function ExpenseList({
@@ -21,7 +22,7 @@ export function ExpenseList({
   className?: string;
 }) {
   const collectionNames = new Map(
-    collections.map((collection) => [collection.id, collection.name]),
+    collections.map((collection) => [collection.id, collection.title]),
   );
   return (
     <ul className={twMerge("divide-y divide-neutral-100", className)}>
@@ -38,18 +39,24 @@ export function ExpenseList({
                 {expense.title}
               </span>
               <span className="mt-1 block truncate text-xs text-neutral-400">
-                {categories[expense.category].label}
-                {showDate && <> · {formatDate(expense.date)}</>}
+                {isKnownCategory(expense.category)
+                  ? categories[expense.category].label
+                  : expense.category}
+                {showDate && <> · {formatDate(expense.purchasedAt)}</>}
               </span>
             </span>
             {!showDate && (
               <span className="hidden w-40 shrink-0 truncate text-xs text-neutral-400 md:block">
-                {collectionNames.get(expense.collectionId)}
+                {expense.collectionId === null
+                  ? "No collection"
+                  : collectionNames.get(expense.collectionId)}
               </span>
             )}
             <span className="shrink-0 text-right text-sm whitespace-nowrap tabular-nums">
               {formatAmount(expense.amountInCents, 2)}
-              <span className="ml-1 text-xs text-neutral-400">kr</span>
+              <span className="ml-1 text-xs text-neutral-400">
+                {expense.currency}
+              </span>
             </span>
           </button>
         </li>

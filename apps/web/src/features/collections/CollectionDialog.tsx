@@ -27,15 +27,13 @@ export function CollectionDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const name = String(data.get("name") ?? "").trim();
-    const description = String(data.get("description") ?? "").trim();
-    if (!name) {
+    const title = String(data.get("title") ?? "").trim();
+    if (!title || title.length > 64) {
       setValidationError("Give your collection a name.");
       return;
     }
     onSave({
-      name,
-      description,
+      title,
       color,
     });
   }
@@ -49,26 +47,14 @@ export function CollectionDialog({
     >
       <form className="mt-6" onSubmit={handleSubmit} aria-busy={pending}>
         <fieldset disabled={pending} className="flex min-w-0 flex-col gap-5">
-          <FormField htmlFor="collection-name" label="Collection name">
+          <FormField htmlFor="collection-title" label="Collection name">
             <TextInput
-              id="collection-name"
-              name="name"
-              defaultValue={collection?.name ?? ""}
+              id="collection-title"
+              name="title"
+              defaultValue={collection?.title ?? ""}
               placeholder="e.g. A weekend away"
-              maxLength={50}
+              maxLength={64}
               required
-            />
-          </FormField>
-          <FormField
-            htmlFor="collection-description"
-            label="Description (optional)"
-          >
-            <TextInput
-              id="collection-description"
-              name="description"
-              defaultValue={collection?.description ?? ""}
-              placeholder="What are you keeping track of?"
-              maxLength={120}
             />
           </FormField>
           <fieldset>

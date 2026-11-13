@@ -199,7 +199,7 @@ const CollectionSelector = ({
         {collections.length === 0 && <option value="">No collections</option>}
         {collections.map((collection) => (
           <option key={collection.id} value={collection.id}>
-            {collection.name}
+            {collection.title}
           </option>
         ))}
       </select>
