@@ -11,6 +11,11 @@ import {
   useDeleteCollection,
   useUpdateCollection,
 } from "../collections/mutations";
+import {
+  useCreateExpense,
+  useDeleteExpense,
+  useUpdateExpense,
+} from "../expenses/mutations";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 
 export type DialogState =
@@ -44,6 +49,9 @@ export function WorkspaceProvider({
   const updateCollection = useUpdateCollection();
   const createCollection = useCreateCollection();
   const deleteCollection = useDeleteCollection();
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+  const deleteExpense = useDeleteExpense();
 
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
 
@@ -83,11 +91,16 @@ export function WorkspaceProvider({
 
   function saveExpense(input: ExpenseInput) {
     if (dialog.kind !== "expense") return;
-    if (dialog.expense) {
-      console.log("Update expense", { id: dialog.expense.id, input });
-    } else {
-      console.log("Create expense", input);
-    }
+    const { expense } = dialog;
+    const isCreate = expense === null;
+
+    const message = isCreate ? "Expense added." : "Expense updated.";
+    const action = () =>
+      isCreate
+        ? createExpense.mutateAsync(input)
+        : updateExpense.mutateAsync({ ...expense, ...input });
+
+    save(action, message);
   }
 
   function saveCollection(input: CollectionInput) {
@@ -112,6 +125,13 @@ export function WorkspaceProvider({
     );
   }
 
+  function onDeleteExpense(expense: Expense) {
+    save(
+      () => deleteExpense.mutateAsync({ id: expense.id }),
+      "Expense deleted.",
+    );
+  }
+
   return (
     <WorkspaceContext value={{ ...data, openDialog, addExpense }}>
       {children}
@@ -124,7 +144,7 @@ export function WorkspaceProvider({
         onChange={openDialog}
         onSaveExpense={saveExpense}
         onSaveCollection={saveCollection}
-        onDeleteExpense={(expense) => console.log("Delete expense", expense)}
+        onDeleteExpense={onDeleteExpense}
         onDeleteCollection={onDeleteCollection}
       />
       <div
