@@ -1,5 +1,11 @@
 import { Check } from "lucide-react";
-import { createContext, type ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import type {
   Collection,
   CollectionInput,
@@ -58,6 +64,13 @@ export function WorkspaceProvider({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!notice) return;
+
+    const timeout = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(timeout);
+  }, [notice]);
 
   async function save(operation: () => Promise<unknown>, message: string) {
     setError("");
