@@ -1,3 +1,5 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check } from "lucide-react";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import type {
   Collection,
@@ -5,6 +7,7 @@ import type {
   Expense,
   ExpenseInput,
 } from "../../lib/expenses";
+import { trpc } from "../../trpc";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 
 export type DialogState =
@@ -35,7 +38,71 @@ export function WorkspaceProvider({
   data: WorkspaceData;
   children: ReactNode;
 }) {
+  const queryClient = useQueryClient();
+
+  const updateCollection = useMutation(
+    trpc.collections.update.mutationOptions({
+      onSuccess: (updated) => {
+        const queryKey = trpc.collections.list.queryKey();
+
+        queryClient.setQueryData(queryKey, (collections) =>
+          collections?.map((c) => (c.id === updated.id ? updated : c)),
+        );
+
+        return queryClient.invalidateQueries({ queryKey });
+      },
+    }),
+  );
+  const createCollection = useMutation(
+    trpc.collections.create.mutationOptions({
+      onSuccess: (created) => {
+        const queryKey = trpc.collections.list.queryKey();
+
+        queryClient.setQueryData(queryKey, (collections) =>
+          collections ? [...collections, created] : undefined,
+        );
+
+        return queryClient.invalidateQueries({ queryKey });
+      },
+    }),
+  );
+  const deleteCollection = useMutation(
+    trpc.collections.delete.mutationOptions({
+      onSuccess: (deleted) => {
+        const queryKey = trpc.collections.list.queryKey();
+
+        queryClient.setQueryData(queryKey, (collections) =>
+          collections?.filter((collection) => collection.id !== deleted.id),
+        );
+
+        return queryClient.invalidateQueries({ queryKey });
+      },
+    }),
+  );
+
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
+
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function save(operation: () => Promise<unknown>, message: string) {
+    setError("");
+    setPending(true);
+    try {
+      await operation();
+      setDialog({ kind: "closed" });
+      setNotice(message);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to save changes. Please try again.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
 
   function openDialog(next: DialogState) {
     setDialog(next);
@@ -60,11 +127,24 @@ export function WorkspaceProvider({
 
   function saveCollection(input: CollectionInput) {
     if (dialog.kind !== "collection") return;
-    if (dialog.collection) {
-      console.log("Update collection", { id: dialog.collection.id, input });
-    } else {
-      console.log("Create collection", input);
-    }
+    const { collection } = dialog;
+
+    const isCreate = collection === null;
+    const message = isCreate ? "Collection created." : "Collection updated.";
+
+    const action = () =>
+      isCreate
+        ? createCollection.mutateAsync(input)
+        : updateCollection.mutateAsync({ ...collection, ...input });
+
+    save(action, message);
+  }
+
+  function onDeleteCollection(collection: Collection) {
+    save(
+      () => deleteCollection.mutateAsync({ id: collection.id }),
+      "Collection and its expenses deleted.",
+    );
   }
 
   return (
@@ -74,16 +154,25 @@ export function WorkspaceProvider({
         dialog={dialog}
         collections={data.collections}
         expenses={data.expenses}
-        pending={false}
-        error=""
+        pending={pending}
+        error={error}
         onChange={openDialog}
         onSaveExpense={saveExpense}
         onSaveCollection={saveCollection}
         onDeleteExpense={(expense) => console.log("Delete expense", expense)}
-        onDeleteCollection={(collection) =>
-          console.log("Delete collection", collection)
-        }
+        onDeleteCollection={onDeleteCollection}
       />
+      <div
+        role="status"
+        className="pointer-events-none fixed inset-x-4 bottom-40 z-40 flex justify-center"
+      >
+        {notice && (
+          <div className="flex max-w-full items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg">
+            <Check className="size-4 shrink-0" />
+            {notice}
+          </div>
+        )}
+      </div>
     </WorkspaceContext>
   );
 }

@@ -91,6 +91,8 @@ export const collectionsRouter = t.router({
             message: "Collection not found.",
           });
         }
+
+        return collection;
       } catch (cause) {
         if (
           cause instanceof DrizzleQueryError &&
