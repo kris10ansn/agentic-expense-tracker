@@ -6,60 +6,64 @@ import {
   Images,
   SquarePen,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { Button, IconButton, TextArea } from "../../components/inputs";
+import {
+  Button,
+  FileInputButton,
+  IconButton,
+  TextArea,
+  type FileInputButtonProps,
+} from "../../components/inputs";
 import type { Collection } from "../../lib/expenses";
-import { RecordingButton, type RecordingButtonProps } from "./RecordingButton";
+import { RecordingButton } from "./RecordingButton";
+import { createTranscript, useSpeech } from "../../hooks/useSpeech";
+import { ImagePreview } from "../../components/ImagePreview";
+
+export type CaptureDockData = { description: string; files: File[] };
 
 type CaptureDockProps = {
   collections: Collection[];
   onManualEntry: (collectionId?: string) => void;
-  onRecordingStart?: (collectionId: string) => void;
-  onRecordingStop?: RecordingButtonProps["onRecordingStop"];
-  onCamera?: (collectionId: string) => void;
-  onGallery?: (collectionId: string) => void;
-  onDescriptionSubmit?: (input: {
-    description: string;
-    collectionId: string;
-  }) => void;
+  onSubmit: (input: CaptureDockData) => void;
   className?: string;
 };
 
-function MediaButton({
-  kind,
-  onClick,
-  disabled,
-}: {
-  kind: "camera" | "gallery";
-  onClick: () => void;
-  disabled: boolean;
-}) {
-  const Icon = kind === "camera" ? Camera : Images;
-  return (
-    <Button
-      variant="ghost"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={kind === "camera" ? "Take a photo" : "Choose from gallery"}
-      className="min-w-16 flex-col gap-1 rounded-lg px-2 py-2 text-xs font-normal text-neutral-600 hover:bg-neutral-100"
-    >
-      <Icon className="size-5" strokeWidth={1.5} />
-      {kind === "camera" ? "Camera" : "Gallery"}
-    </Button>
-  );
-}
-
 export function CaptureDock({
   collections,
-  onManualEntry,
-  onRecordingStart,
-  onRecordingStop,
-  onCamera,
-  onGallery,
-  onDescriptionSubmit,
   className,
+  onSubmit,
+  onManualEntry,
 }: CaptureDockProps) {
+  const [description, setDescription] = useState("");
+  const [files, setFiles] = useState(new Array<File>());
+
+  const handleSpeechResults = useCallback(
+    (results: SpeechRecognitionResultList) => {
+      setDescription(createTranscript(results));
+    },
+    [],
+  );
+
+  const speech = useSpeech({ onResults: handleSpeechResults });
+
+  const handleRecordingStart = useCallback(() => speech.startRecording?.(), []);
+  const handleRecordingStop = useCallback(() => speech.stopRecording?.(), []);
+
+  const handleFileChange = useCallback(
+    (list: FileList) => setFiles([...files, ...list]),
+    [files],
+  );
+
+  const handleRemoveFile = useCallback(
+    (file: File) => setFiles(files.filter((f) => f !== file)),
+    [files],
+  );
+
+  const submit = useCallback(() => {
+    onSubmit({ description, files });
+  }, [onSubmit]);
+
   const [collectionId, setCollectionId] = useState("");
   const selectedCollection =
     collections.find((item) => item.id === collectionId)?.id ??
@@ -83,37 +87,44 @@ export function CaptureDock({
 
         <Button
           aria-label="Add expense manually"
-          onClick={() => onManualEntry(selectedCollection || undefined)}
+          onClick={() => onManualEntry(collectionId)}
           className="ml-auto shrink-0 gap-2 rounded-lg bg-blue-50 px-2 text-xs text-blue-700 hover:bg-blue-100"
         >
           <SquarePen className="size-4" />
           Manual
         </Button>
       </div>
+
+      <div className="flex flex-row gap-2 mb-2">
+        {files.map((file, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: Index will not change
+          <ImagePreview file={file} key={index} removeFile={handleRemoveFile} />
+        ))}
+      </div>
+
       <DescriptionComposer
-        disabled={!selectedCollection}
-        onSubmit={(description) =>
-          onDescriptionSubmit?.({
-            description,
-            collectionId: selectedCollection,
-          })
-        }
+        disabled={!selectedCollection || !description}
+        value={description}
+        onChange={setDescription}
+        onSubmit={submit}
       />
       <div className="mt-4 flex items-center justify-evenly gap-3">
         <MediaButton
           kind="gallery"
           disabled={!selectedCollection}
-          onClick={() => onGallery?.(selectedCollection)}
+          fileList={files}
+          onChange={handleFileChange}
         />
         <RecordingButton
           disabled={!selectedCollection}
-          onRecordingStart={() => onRecordingStart?.(selectedCollection)}
-          onRecordingStop={(reason) => onRecordingStop?.(reason)}
+          onRecordingStart={handleRecordingStart}
+          onRecordingStop={handleRecordingStop}
         />
         <MediaButton
           kind="camera"
           disabled={!selectedCollection}
-          onClick={() => onCamera?.(selectedCollection)}
+          fileList={files}
+          onChange={handleFileChange}
         />
       </div>
     </section>
@@ -123,31 +134,32 @@ export function CaptureDock({
 function DescriptionComposer({
   onSubmit,
   disabled,
+  value,
+  onChange,
 }: {
-  onSubmit: (description: string) => void;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
   disabled: boolean;
 }) {
-  const [text, setText] = useState("");
-  const description = text.trim();
   return (
     <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!disabled && description) onSubmit(description);
+      action={() => {
+        if (!disabled) onSubmit();
       }}
       className="flex min-w-0 items-end rounded-xl border border-neutral-200 bg-neutral-50/50 focus-within:border-blue-500"
     >
       <TextArea
         aria-label="Describe an expense"
         placeholder="Describe…"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         className="block max-h-32 min-h-11 min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-3 py-3 text-base leading-5 text-neutral-900 shadow-none placeholder:text-neutral-400 focus:ring-0 focus:outline-none focus-visible:outline-none lg:text-sm"
       />
       <IconButton
         type="submit"
         aria-label="Add described expense"
-        disabled={disabled || !description}
+        disabled={disabled}
         className="size-11 rounded-lg text-neutral-600 hover:bg-neutral-200"
       >
         <ArrowUp className="size-5" />
@@ -186,3 +198,33 @@ const CollectionSelector = ({
     </span>
   </label>
 );
+
+const MediaButton = ({
+  kind,
+  disabled,
+  fileList,
+  onChange,
+}: {
+  kind: "camera" | "gallery";
+  disabled: boolean;
+} & Pick<FileInputButtonProps, "fileList" | "onChange">) => {
+  const Icon = kind === "camera" ? Camera : Images;
+  return (
+    <FileInputButton
+      variant="ghost"
+      disabled={disabled}
+      aria-label={kind === "camera" ? "Take a photo" : "Choose from gallery"}
+      className="min-w-16 flex-col gap-1 rounded-lg px-2 py-2 text-xs font-normal text-neutral-600 hover:bg-neutral-100"
+      inputProps={{
+        accept: "image/*",
+        multiple: true,
+        ...(kind === "camera" ? { capture: "environment" } : {}),
+      }}
+      fileList={fileList}
+      onChange={onChange}
+    >
+      <Icon className="size-5" strokeWidth={1.5} />
+      {kind === "camera" ? "Camera" : "Gallery"}
+    </FileInputButton>
+  );
+};

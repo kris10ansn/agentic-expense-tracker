@@ -1,9 +1,13 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { PageHeader } from "../components/PageHeader";
-import { CaptureDock } from "../features/capture/CaptureDock";
+import {
+  CaptureDock,
+  type CaptureDockData,
+} from "../features/capture/CaptureDock";
 import { PendingExpense } from "../features/capture/PendingExpense";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
+import { useCallback } from "react";
 
 const RECENT_EXPENSE_LIMIT = 4;
 const route = getRouteApi("/_app/");
@@ -14,6 +18,14 @@ export function HomePage() {
   const recentExpenses = [...expenses]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, RECENT_EXPENSE_LIMIT);
+
+  const handleSubmit = useCallback(
+    ({ description, files }: CaptureDockData) => {
+      console.log("Submit!", { description, files });
+    },
+    [],
+  );
+
   return (
     <>
       <PageHeader title="Recent expenses" className="mb-5 lg:mb-10" />
@@ -40,7 +52,11 @@ export function HomePage() {
           )}
         </section>
         <div className="relative z-10 shrink-0 pt-5 lg:pt-0">
-          <CaptureDock collections={collections} onManualEntry={addExpense} />
+          <CaptureDock
+            collections={collections}
+            onManualEntry={addExpense}
+            onSubmit={handleSubmit}
+          />
         </div>
       </div>
     </>

@@ -150,7 +150,7 @@ export function IconButton({
   );
 }
 
-type FileInputButtonProps = {
+export type FileInputButtonProps = {
   fileList: File[];
   onChange: (fileList: FileList) => void;
   inputProps?: Omit<
