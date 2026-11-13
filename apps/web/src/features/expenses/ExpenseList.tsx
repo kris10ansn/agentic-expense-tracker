@@ -48,7 +48,7 @@ export function ExpenseList({
               </span>
             )}
             <span className="shrink-0 text-right text-sm whitespace-nowrap tabular-nums">
-              {formatAmount(expense.amount, 2)}
+              {formatAmount(expense.amountInCents, 2)}
               <span className="ml-1 text-xs text-neutral-400">kr</span>
             </span>
           </button>

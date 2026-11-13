@@ -10,6 +10,7 @@ import {
   createTRPCOptionsProxy,
   type TRPCOptionsProxy,
 } from "@trpc/tanstack-react-query";
+import superjson from "superjson";
 
 import { queryClient } from "./lib/query-client";
 
@@ -17,8 +18,8 @@ const client = createTRPCClient<AppRouter>({
   links: [
     splitLink({
       condition: (operation) => isNonJsonSerializable(operation.input),
-      true: httpLink({ url: "/trpc" }),
-      false: httpBatchLink({ url: "/trpc" }),
+      true: httpLink({ url: "/trpc", transformer: superjson }),
+      false: httpBatchLink({ url: "/trpc", transformer: superjson }),
     }),
   ],
 });

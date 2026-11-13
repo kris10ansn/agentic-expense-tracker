@@ -31,7 +31,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "1",
     title: "REMA 1000",
-    amount: 642.5,
+    amountInCents: 64250,
     category: "groceries",
     date: "2026-11-12",
     collectionId: "everyday",
@@ -39,7 +39,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "2",
     title: "Kaffebrenneriet",
-    amount: 68,
+    amountInCents: 6800,
     category: "dining",
     date: "2026-11-12",
     collectionId: "out-and-about",
@@ -47,7 +47,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "3",
     title: "Ruter",
-    amount: 44,
+    amountInCents: 4400,
     category: "transport",
     date: "2026-11-11",
     collectionId: "out-and-about",
@@ -55,7 +55,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "4",
     title: "Uniqlo",
-    amount: 699,
+    amountInCents: 69900,
     category: "shopping",
     date: "2026-11-11",
     collectionId: "everyday",
@@ -63,7 +63,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "5",
     title: "Meny",
-    amount: 471.2,
+    amountInCents: 47120,
     category: "groceries",
     date: "2026-11-10",
     collectionId: "everyday",
@@ -71,7 +71,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "6",
     title: "Baker Hansen",
-    amount: 89,
+    amountInCents: 8900,
     category: "dining",
     date: "2026-11-10",
     collectionId: "out-and-about",
@@ -79,7 +79,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "7",
     title: "Netflix",
-    amount: 129,
+    amountInCents: 12900,
     category: "other",
     date: "2026-11-09",
     collectionId: "everyday",
@@ -87,7 +87,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "8",
     title: "IKEA",
-    amount: 349,
+    amountInCents: 34900,
     category: "shopping",
     date: "2026-11-08",
     collectionId: "everyday",
@@ -95,7 +95,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "9",
     title: "KIWI",
-    amount: 526.8,
+    amountInCents: 52680,
     category: "groceries",
     date: "2026-11-07",
     collectionId: "everyday",
@@ -103,7 +103,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "10",
     title: "Wolt",
-    amount: 289,
+    amountInCents: 28900,
     category: "dining",
     date: "2026-11-06",
     collectionId: "out-and-about",
@@ -111,7 +111,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "11",
     title: "Apotek 1",
-    amount: 149,
+    amountInCents: 14900,
     category: "other",
     date: "2026-11-05",
     collectionId: "everyday",
@@ -119,7 +119,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "12",
     title: "Coop Mega",
-    amount: 384.9,
+    amountInCents: 38490,
     category: "groceries",
     date: "2026-11-04",
     collectionId: "everyday",
@@ -127,7 +127,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "13",
     title: "Spotify",
-    amount: 119,
+    amountInCents: 11900,
     category: "other",
     date: "2026-11-03",
     collectionId: "everyday",
@@ -135,7 +135,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "14",
     title: "Ruter monthly pass",
-    amount: 897,
+    amountInCents: 89700,
     category: "transport",
     date: "2026-11-02",
     collectionId: "out-and-about",
@@ -143,7 +143,7 @@ const novemberExpenses: Expense[] = [
   {
     id: "15",
     title: "Monthly rent",
-    amount: 8500,
+    amountInCents: 850000,
     category: "housing",
     date: "2026-11-01",
     collectionId: "home",
@@ -155,7 +155,7 @@ export const initialExpenses: Expense[] = months.flatMap((month, index) =>
     ...expense,
     id: `${month.value}-${expense.id}`,
     date: `${month.value}${expense.date.slice(7)}`,
-    amount: Math.round(expense.amount * (1 + index * 0.08) * 100) / 100,
+    amountInCents: Math.round(expense.amountInCents * (1 + index * 0.08)),
   })),
 );
 

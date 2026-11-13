@@ -1,12 +1,7 @@
 import type { Expense } from "../../lib/expenses";
 
 export function sumExpenses(expenses: Expense[]) {
-  return (
-    expenses.reduce(
-      (cents, expense) => cents + Math.round(expense.amount * 100),
-      0,
-    ) / 100
-  );
+  return expenses.reduce((cents, expense) => cents + expense.amountInCents, 0);
 }
 
 export function groupExpenses(expenses: Expense[], period: "day" | "month") {
@@ -22,6 +17,6 @@ export function groupExpenses(expenses: Expense[], period: "day" | "month") {
     .map(([date, entries]) => ({
       date,
       expenses: entries,
-      total: sumExpenses(entries),
+      totalInCents: sumExpenses(entries),
     }));
 }

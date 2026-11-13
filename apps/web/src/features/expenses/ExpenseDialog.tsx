@@ -37,26 +37,23 @@ export function ExpenseDialog({
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") ?? "").trim();
-    const amount = Number(data.get("amount"));
+    const amountInCents = Math.round(Number(data.get("amountInNok")) * 100);
     const category = String(data.get("category"));
     const date = String(data.get("date"));
     const collectionId = String(data.get("collectionId"));
     if (
       !title ||
-      !Number.isFinite(amount) ||
-      amount <= 0 ||
+      !Number.isSafeInteger(amountInCents) ||
       !isCategory(category) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
       !collections.some((item) => item.id === collectionId)
     ) {
-      setValidationError(
-        "Enter a name, a positive amount, a date, and a collection.",
-      );
+      setValidationError("Enter a name, an amount, a date, and a collection.");
       return;
     }
     onSave({
       title,
-      amount: Math.round(amount * 100) / 100,
+      amountInCents,
       category,
       date,
       collectionId,
@@ -88,14 +85,14 @@ export function ExpenseDialog({
             <FormField htmlFor="expense-amount" label="Amount in NOK">
               <TextInput
                 id="expense-amount"
-                name="amount"
+                name="amountInNok"
                 type="number"
                 inputMode="decimal"
                 placeholder="0.00"
-                min="0.01"
+                min="-100000000"
                 max="100000000"
                 step="0.01"
-                defaultValue={expense?.amount ?? ""}
+                defaultValue={expense ? expense.amountInCents / 100 : ""}
                 required
               />
             </FormField>

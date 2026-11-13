@@ -9,7 +9,7 @@ const collection: CollectionInput = {
 };
 const expense: ExpenseInput = {
   title: "Lunch",
-  amount: 50.25,
+  amountInCents: 5025,
   category: "dining",
   date: "2026-11-12",
   collectionId: "everyday",
@@ -48,7 +48,7 @@ describe("mock resource operations", () => {
     await api.expenses.update("lunch", {
       ...expense,
       collectionId: travel.id,
-      amount: 75.1,
+      amountInCents: 7510,
       date: "2026-12-02",
     });
     expect(await api.expenses.list()).toEqual([
@@ -56,7 +56,7 @@ describe("mock resource operations", () => {
         ...expense,
         id: "lunch",
         collectionId: travel.id,
-        amount: 75.1,
+        amountInCents: 7510,
         date: "2026-12-02",
       },
     ]);

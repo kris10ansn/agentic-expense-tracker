@@ -43,7 +43,7 @@ function MonthSection({
         </h2>
         <span className="shrink-0 text-xs whitespace-nowrap text-neutral-500 tabular-nums">
           <span className="sr-only">Monthly total </span>
-          {formatAmount(month.total, 2)} kr
+          {formatAmount(month.totalInCents, 2)} kr
         </span>
       </summary>
       <DaySections
@@ -89,7 +89,7 @@ function DaySections({ expenses, collections, onSelectExpense }: HistoryProps) {
             </h3>
             <p className="shrink-0 text-xs font-medium whitespace-nowrap text-neutral-600 tabular-nums">
               <span className="sr-only">Daily total </span>
-              {formatAmount(day.total, 2)} kr
+              {formatAmount(day.totalInCents, 2)} kr
             </p>
           </div>
           <ExpenseList

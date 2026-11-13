@@ -20,7 +20,7 @@ export function Playground() {
   const status = useQuery(
     trpc.status.queryOptions(undefined, { retry: false }),
   );
-  const addExpenses = useMutation(trpc.addExpenses.mutationOptions());
+  const addExpenses = useMutation(trpc.expenses.addAgentic.mutationOptions());
 
   const handleSubmit = useCallback<ExpenseInputProps["onSubmit"]>(
     (text, files) => {

@@ -1,10 +1,17 @@
 import { google } from "@ai-sdk/google";
 import { type FilePart, generateText, Output } from "ai";
+import type z from "zod";
 import type { ExpenseInput } from "./input";
 import instructions from "./PROMPT.md" with { type: "text" };
-import { expenseExtractionSchema } from "./schema";
+import {
+  type expenseExtractionsSchema,
+  expenseModelOutputSchema,
+} from "./schema";
 
-export async function extractExpenses({ description, files }: ExpenseInput) {
+export async function extractExpenses({
+  description,
+  files,
+}: ExpenseInput): Promise<z.infer<typeof expenseExtractionsSchema>> {
   const attachments = await Promise.all(
     files.map(
       async (image): Promise<FilePart> => ({
@@ -17,7 +24,7 @@ export async function extractExpenses({ description, files }: ExpenseInput) {
 
   const { output } = await generateText({
     model: google("gemini-3.5-flash-lite"),
-    output: Output.object({ schema: expenseExtractionSchema }),
+    output: Output.object({ schema: expenseModelOutputSchema }),
     instructions,
     prompt: [
       {

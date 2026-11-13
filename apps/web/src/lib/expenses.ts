@@ -1,10 +1,12 @@
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { TRPC } from "../trpc";
 
-type ExtractedExpense = inferOutput<TRPC["addExpenses"]>["expenses"][number];
+type ExtractedExpense = inferOutput<
+  TRPC["expenses"]["addAgentic"]
+>["expenses"][number];
 
-export type Category = NonNullable<ExtractedExpense["category"]>;
-export type Expense = Pick<ExtractedExpense, "title" | "amount"> & {
+export type Category = keyof typeof categories;
+export type Expense = Pick<ExtractedExpense, "title" | "amountInCents"> & {
   id: string;
   category: Category;
   date: string;
@@ -40,7 +42,7 @@ export const categories = {
     label: "Other",
   },
 } satisfies Record<
-  Category,
+  ExtractedExpense["category"],
   {
     label: string;
   }
@@ -57,11 +59,11 @@ export const collectionColors = [
   { value: "#9c92b5", label: "Purple" },
   { value: "#c77f7f", label: "Rose" },
 ];
-export function formatAmount(amount: number, fractionDigits = 0) {
+export function formatAmount(amountInCents: number, fractionDigits = 0) {
   return new Intl.NumberFormat("nb-NO", {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
-  }).format(amount);
+  }).format(amountInCents / 100);
 }
 
 export function formatDate(date: string) {

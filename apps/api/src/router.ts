@@ -1,12 +1,7 @@
-import { initTRPC, TRPCError } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { sql } from "drizzle-orm";
-import type { Database } from "./db";
-import { extractExpenses } from "./expenses/extract";
-import { expenseFormSchema } from "./expenses/input";
-
-const t = initTRPC.context<{ db: Database }>().create();
-
-const publicProcedure = t.procedure;
+import { expensesRouter } from "./expenses/router";
+import { publicProcedure, t } from "./trpc";
 
 export const appRouter = t.router({
   status: publicProcedure.query(async ({ ctx }) => {
@@ -22,9 +17,7 @@ export const appRouter = t.router({
 
     return { api: "ok", database: "connected" };
   }),
-  addExpenses: publicProcedure
-    .input(expenseFormSchema)
-    .mutation(({ input }) => extractExpenses(input)),
+  expenses: expensesRouter,
 });
 
 export type AppRouter = typeof appRouter;

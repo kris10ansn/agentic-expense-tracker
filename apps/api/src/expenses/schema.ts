@@ -1,40 +1,38 @@
 import { z } from "zod";
-
-const expenseSchema = z.object({
-  title: z.string().trim().min(1).max(100),
-
-  amount: z.number().min(0).max(Number.MAX_SAFE_INTEGER),
-
-  currency: z.enum(["NOK", "EUR", "USD"]).nullable(),
-
-  category: z
-    .enum(["groceries", "dining", "transport", "housing", "shopping", "other"])
-    .nullable(),
-
-  purchasedAt: z
-    .string()
-    .nullable()
-    .describe("Exact ISO 8601 timestamp with timezone, or null"),
-
-  purchasedOn: z.string().nullable().describe("Date-only YYYY-MM-DD, or null"),
-
-  merchant: z.string().nullable(),
-});
+import { expenseCreateSchema } from "../db/schema";
 
 const suggestionSchema = z.object({
-  field: expenseSchema.keyof(),
+  field: expenseCreateSchema.keyof(),
   candidates: z.array(z.string()),
 });
 
-export const expenseExtractionSchema = z.object({
-  expenses: z.array(expenseSchema),
+export const expenseExtractionsSchema = z.object({
+  expenses: z.array(expenseCreateSchema),
 
   failures: z.array(
     z.object({
-      partialExpense: expenseSchema.partial(),
+      partialExpense: expenseCreateSchema.partial(),
       sourceText: z.string(),
       reason: z.string(),
       suggestions: z.array(suggestionSchema),
+    }),
+  ),
+});
+
+const modelExpenseSchema = expenseCreateSchema.extend({
+  purchasedAt: z.iso
+    .datetime({ offset: true })
+    .describe("Exact ISO 8601 timestamp with timezone. Omit when unknown.")
+    .transform((value) => new Date(value))
+    .optional(),
+});
+
+// Gemini emits JSON strings; parse dates once before returning application data.
+export const expenseModelOutputSchema = expenseExtractionsSchema.extend({
+  expenses: z.array(modelExpenseSchema),
+  failures: z.array(
+    expenseExtractionsSchema.shape.failures.element.extend({
+      partialExpense: modelExpenseSchema.partial(),
     }),
   ),
 });

@@ -10,7 +10,9 @@ import {
   test,
 } from "bun:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import superjson from "superjson";
 import { createDatabase } from "./db";
+import { expensesTable } from "./db/schema";
 import { appRouter } from "./router";
 
 const db = createDatabase("postgresql://test:test@localhost:1/expenses");
@@ -20,16 +22,15 @@ const extraction = {
   expenses: [
     {
       title: "Coffee",
-      amount: 45,
+      amountInCents: 4500,
       currency: "NOK",
       category: "dining",
-      purchasedAt: null,
-      purchasedOn: null,
+      description: "Coffee",
       merchant: null,
     },
   ],
   failures: [],
-} satisfies Awaited<ReturnType<typeof caller.addExpenses>>;
+} satisfies Awaited<ReturnType<typeof caller.expenses.addAgentic>>;
 
 function googleResponse(output: unknown) {
   return Response.json({
@@ -76,7 +77,7 @@ afterAll(async () => {
   await db.$client.close();
 });
 
-describe("addExpenses", () => {
+describe("expenses.addAgentic", () => {
   test.each([
     ["text", () => expenseForm("Coffee 45 kr")],
     [
@@ -89,7 +90,7 @@ describe("addExpenses", () => {
     ],
     ["text and images", () => expenseForm("Coffee 45 kr", [image])],
   ])("accepts %s", async (_, createForm) => {
-    expect(await caller.addExpenses(createForm())).toEqual(extraction);
+    expect(await caller.expenses.addAgentic(createForm())).toEqual(extraction);
   });
 
   test("preserves the multipart endpoint and sends context and image bytes to Gemini", async () => {
@@ -101,7 +102,7 @@ describe("addExpenses", () => {
     setSystemTime(new Date(currentTime));
     const response = await fetchRequestHandler({
       endpoint: "/trpc",
-      req: new Request("http://localhost/trpc/addExpenses", {
+      req: new Request("http://localhost/trpc/expenses.addAgentic", {
         method: "POST",
         body: expenseForm("  Coffee 45 kr  ", [image]),
       }),
@@ -110,7 +111,9 @@ describe("addExpenses", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ result: { data: extraction } });
+    expect(await response.json()).toEqual({
+      result: { data: superjson.serialize(extraction) },
+    });
     expect(googleFetch).toHaveBeenCalledTimes(1);
     const [url, options] = googleFetch.mock.calls[0] ?? [];
     expect(url).toBe(
@@ -148,6 +151,48 @@ describe("addExpenses", () => {
         responseMimeType: "application/json",
         responseJsonSchema: expect.any(Object),
       },
+    });
+  });
+
+  test("parses model timestamps into Dates for purchases and partial failures", async () => {
+    const purchasedAt = "2026-11-13T13:00:00+01:00";
+    const datedExtraction = {
+      expenses: extraction.expenses.map((expense) => ({
+        ...expense,
+        purchasedAt,
+      })),
+      failures: [
+        {
+          partialExpense: { title: "Lunch", purchasedAt },
+          sourceText: "Lunch at 13:00",
+          reason: "Amount missing",
+          suggestions: [],
+        },
+      ],
+    };
+    spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(googleResponse(datedExtraction))
+      .mockResolvedValueOnce(googleResponse(datedExtraction));
+    const result = await caller.expenses.addAgentic(
+      expenseForm("Coffee and lunch"),
+    );
+    expect(result.expenses[0]?.purchasedAt).toEqual(new Date(purchasedAt));
+    expect(result.failures[0]?.partialExpense.purchasedAt).toEqual(
+      new Date(purchasedAt),
+    );
+
+    const response = await fetchRequestHandler({
+      endpoint: "/trpc",
+      req: new Request("http://localhost/trpc/expenses.addAgentic", {
+        method: "POST",
+        body: expenseForm("Coffee and lunch", [image]),
+      }),
+      router: appRouter,
+      createContext: () => ({ db }),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      result: { data: superjson.serialize(result) },
     });
   });
 
@@ -202,7 +247,9 @@ describe("addExpenses", () => {
       },
     ],
   ])("rejects %s before calling Gemini", async (_, createForm) => {
-    await expect(caller.addExpenses(createForm())).rejects.toMatchObject({
+    await expect(
+      caller.expenses.addAgentic(createForm()),
+    ).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
     expect(fetch).not.toHaveBeenCalled();
@@ -213,7 +260,7 @@ describe("addExpenses", () => {
       googleResponse({ expenses: [{ title: "Coffee" }], failures: [] }),
     );
     await expect(
-      caller.addExpenses(expenseForm("Coffee")),
+      caller.expenses.addAgentic(expenseForm("Coffee")),
     ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 });
@@ -224,4 +271,48 @@ test("status reports database failures as service unavailable", async () => {
     code: "SERVICE_UNAVAILABLE",
     message: "The database is unavailable.",
   });
+});
+
+test("updating a missing expense returns NOT_FOUND over HTTP", async () => {
+  const builder = db.update(expensesTable);
+  const statement = builder.set({ title: "Tea" });
+  spyOn(statement.returning(), "execute").mockResolvedValue([]);
+  spyOn(builder, "set").mockReturnValue(statement);
+  spyOn(db, "update").mockReturnValue(builder);
+
+  const response = await fetchRequestHandler({
+    endpoint: "/trpc",
+    req: new Request("http://localhost/trpc/expenses.update", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: superjson.stringify({
+        id: "00000000-0000-4000-8000-000000000001",
+        title: "Tea",
+      }),
+    }),
+    router: appRouter,
+    createContext: () => ({ db }),
+  });
+  expect(response.status).toBe(404);
+  expect(await response.json()).toMatchObject({
+    error: {
+      json: { message: "Expense not found.", data: { code: "NOT_FOUND" } },
+    },
+  });
+});
+
+test("update database failures remain server errors", async () => {
+  const builder = db.update(expensesTable);
+  const statement = builder.set({ title: "Tea" });
+  spyOn(statement.returning(), "execute").mockRejectedValue(
+    new Error("Database offline"),
+  );
+  spyOn(builder, "set").mockReturnValue(statement);
+  spyOn(db, "update").mockReturnValue(builder);
+  await expect(
+    caller.expenses.update({
+      id: "00000000-0000-4000-8000-000000000001",
+      title: "Tea",
+    }),
+  ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
 });
