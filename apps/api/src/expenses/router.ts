@@ -84,7 +84,19 @@ export const expensesRouter = t.router({
   delete: publicProcedure
     .input(expenseIdSchema)
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.delete(expensesTable).where(eq(expensesTable.id, input.id));
+      const [expense] = await ctx.db
+        .delete(expensesTable)
+        .where(eq(expensesTable.id, input.id))
+        .returning({ id: expensesTable.id });
+
+      if (expense === undefined) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Expense not found.",
+        });
+      }
+
+      return expense;
     }),
 
   addAgentic: publicProcedure

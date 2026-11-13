@@ -44,7 +44,7 @@ export function useDeleteExpense() {
 
   return useMutation(
     trpc.expenses.delete.mutationOptions({
-      onSuccess: (_data, { id }) => {
+      onSuccess: ({ id }) => {
         const queryKey = trpc.expenses.list.queryKey();
 
         queryClient.setQueryData(queryKey, (expenses) =>
