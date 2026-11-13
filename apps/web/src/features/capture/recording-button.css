@@ -1,0 +1,115 @@
+.recording-button {
+  --recording-press-duration: 220ms;
+  --recording-release-duration: 420ms;
+  --recording-pulse-duration: 1800ms;
+  --recording-wave-duration: 900ms;
+  --recording-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --recording-spring: cubic-bezier(0.2, 1.25, 0.4, 1);
+  --recording-play-state: paused;
+
+  background: var(--color-blue-600);
+  transition: transform var(--recording-release-duration)
+    var(--recording-spring);
+  -webkit-touch-callout: none;
+}
+
+.recording-button[data-held="true"] {
+  --recording-play-state: running;
+
+  transform: scale(0.94);
+  transition-duration: var(--recording-press-duration);
+}
+
+.recording-face {
+  background: inherit;
+}
+
+.recording-halo {
+  background: var(--color-blue-100);
+  opacity: 0;
+  scale: 1;
+  transition:
+    opacity var(--recording-release-duration) ease,
+    scale var(--recording-release-duration) var(--recording-settle);
+  animation: var(--recording-pulse-animation, recording-breathe)
+    var(--recording-pulse-duration) ease-in-out infinite;
+  animation-play-state: var(--recording-play-state);
+}
+
+.recording-microphone,
+.recording-wave {
+  transition:
+    opacity var(--recording-press-duration) ease,
+    transform var(--recording-release-duration) var(--recording-spring);
+}
+
+.recording-wave {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.recording-wave span {
+  animation: var(--recording-wave-animation, recording-wave)
+    var(--recording-wave-duration) ease-in-out infinite alternate;
+  animation-delay: var(--recording-wave-delay, 0ms);
+  animation-play-state: var(--recording-play-state);
+}
+
+.recording-wave span:nth-child(2) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -3);
+}
+
+.recording-wave span:nth-child(3) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -1.5);
+}
+
+.recording-wave span:nth-child(4) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -2);
+}
+
+.recording-wave span:nth-child(5) {
+  --recording-wave-delay: calc(var(--recording-wave-duration) / -5);
+}
+
+.recording-button[data-held="true"] .recording-halo {
+  opacity: 1;
+  scale: 1.3;
+}
+
+.recording-button[data-held="true"] .recording-wave {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.recording-button[data-held="true"] .recording-microphone {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+@keyframes recording-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes recording-wave {
+  from {
+    transform: scaleY(0.45);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-button {
+    --recording-press-duration: 0ms;
+    --recording-release-duration: 0ms;
+    --recording-pulse-animation: none;
+    --recording-wave-animation: none;
+  }
+}

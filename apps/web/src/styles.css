@@ -34,20 +34,11 @@
 }
 
 /* Shared viewport measurements keep capture controls above mobile navigation. */
-.expense-prototype {
+.expense-workspace {
   --mobile-navigation-height: calc(
     var(--spacing) *
     16 +
     env(safe-area-inset-bottom)
   );
-  --prototype-toolbar-height: 0px;
-  --home-height: calc(
-    100dvh -
-    var(--mobile-navigation-height) -
-    var(--prototype-toolbar-height)
-  );
-}
-
-.expense-prototype[data-preview="true"] {
-  --prototype-toolbar-height: calc(var(--spacing) * 11);
+  --home-height: calc(100dvh - var(--mobile-navigation-height));
 }

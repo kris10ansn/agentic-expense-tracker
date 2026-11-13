@@ -6,7 +6,8 @@
       "!!**/node_modules",
       "!!**/dist",
       "!!apps/api/drizzle",
-      "!bun.lock"
+      "!bun.lock",
+      "!!apps/web/src/routeTree.gen.ts"
     ],
     "ignoreUnknown": true
   },

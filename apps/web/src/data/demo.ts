@@ -1,7 +1,7 @@
+import type { PendingCapture } from "../features/capture/types";
 import type { Collection, Expense } from "../lib/expenses";
 
-export const demoMonth = "2026-11";
-export const months = [
+const months = [
   { value: "2026-11", label: "November 2026" },
   { value: "2026-10", label: "October 2026" },
   { value: "2026-09", label: "September 2026" },
@@ -12,21 +12,18 @@ export const initialCollections: Collection[] = [
     name: "Everyday",
     description: "Groceries, shopping, and the little things.",
     color: "#458a72",
-    budget: 7000,
   },
   {
     id: "home",
     name: "Home",
     description: "A place for rent and household costs.",
     color: "#7e9fb3",
-    budget: 10000,
   },
   {
     id: "out-and-about",
     name: "Out & about",
     description: "Coffee stops, good food, and getting around.",
     color: "#cea46c",
-    budget: 3000,
   },
 ];
 
@@ -161,3 +158,22 @@ export const initialExpenses: Expense[] = months.flatMap((month, index) =>
     amount: Math.round(expense.amount * (1 + index * 0.08) * 100) / 100,
   })),
 );
+
+// Capture requests stay separate from saved expenses, as they will on the backend.
+export const pendingCaptures: PendingCapture[] = [
+  {
+    id: "pending-lunch",
+    collectionId: "everyday",
+    input: {
+      kind: "images",
+      images: [
+        {
+          id: "lunch",
+          src: "/demo-receipts/lunch-receipt.svg",
+          name: "lunch-receipt.jpg",
+          alt: "Sample receipt for lunch at Godt Brød, 185 kr",
+        },
+      ],
+    },
+  },
+];

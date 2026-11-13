@@ -4,6 +4,7 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import { useCallback, useState } from "react";
@@ -37,12 +38,12 @@ export function Playground() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 py-16">
-      <a
-        href="/"
+      <Link
+        to="/"
         className="text-sm font-medium text-emerald-700 hover:underline"
       >
         ← Back to expense tracker
-      </a>
+      </Link>
       <SectionCard className="w-full max-w-lg p-8 sm:p-10">
         <h1 className="text-lg font-bold">Output:</h1>
 

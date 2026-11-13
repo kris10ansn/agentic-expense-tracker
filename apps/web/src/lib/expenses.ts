@@ -1,16 +1,7 @@
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import {
-  BusFront,
-  House,
-  MoreHorizontal,
-  ShoppingBag,
-  ShoppingBasket,
-  Utensils,
-} from "lucide-react";
 import type { TRPC } from "../trpc";
 
 type ExtractedExpense = inferOutput<TRPC["addExpenses"]>["expenses"][number];
-export type WorkspaceView = "home" | "expenses" | "collections" | "settings";
 
 export type Category = NonNullable<ExtractedExpense["category"]>;
 export type Expense = Pick<ExtractedExpense, "title" | "amount"> & {
@@ -24,60 +15,34 @@ export type Collection = {
   name: string;
   description: string;
   color: string;
-  budget: number;
 };
+
+export type ExpenseInput = Omit<Expense, "id">;
+export type CollectionInput = Omit<Collection, "id">;
 
 export const categories = {
   groceries: {
     label: "Groceries",
-    icon: ShoppingBasket,
-    color: "#458a72",
-    textColor: "#2d6b51",
-    tint: "#edf5f0",
   },
   dining: {
     label: "Food & drink",
-    icon: Utensils,
-    color: "#cea46c",
-    textColor: "#94642d",
-    tint: "#faf3e8",
   },
   transport: {
     label: "Transport",
-    icon: BusFront,
-    color: "#7e9fb3",
-    textColor: "#416479",
-    tint: "#eef3f7",
   },
   housing: {
     label: "Housing",
-    icon: House,
-    color: "#263e35",
-    textColor: "#263e35",
-    tint: "#eaf0ec",
   },
   shopping: {
     label: "Shopping",
-    icon: ShoppingBag,
-    color: "#9c92b5",
-    textColor: "#71608e",
-    tint: "#f3f0f8",
   },
   other: {
     label: "Other",
-    icon: MoreHorizontal,
-    color: "#a7b0b5",
-    textColor: "#53616c",
-    tint: "#f0f2f4",
   },
 } satisfies Record<
   Category,
   {
     label: string;
-    icon: typeof House;
-    color: string;
-    textColor: string;
-    tint: string;
   }
 >;
 

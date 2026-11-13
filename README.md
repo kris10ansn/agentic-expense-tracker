@@ -20,24 +20,34 @@ bun run db:up
 bun run dev
 ```
 
-Open <http://localhost:5173> for the mobile expense workspace. It uses the selected Floating panel dock in the Inset workspace, with a single Recent expenses heading and bottom navigation. Manual entry stays inside the dock. Desktop keeps a sidebar. The original AI screen is preserved at `/playground`.
+Open <http://localhost:5173> for the mobile expense workspace. It keeps the selected Inset layout, Floating panel capture dock, combined pulse/wave recording animation, and compact receipt previews. Mobile uses bottom navigation; desktop uses a sidebar. Expenses have daily totals inside collapsible months. Settings is empty.
 
-Pending expenses appear only on Home, above saved entries. They use the selected Input receipt design while waiting for AI and stay separate from saved data. The Expenses page lists saved expenses only, grouped by day with a daily total. Dates without expenses have no header. The history study compares day dividers, collapsible months, and month tabs.
+TanStack Router owns the routes and typed collection/search filters:
 
-Three visual studies remain. Use their arrows or the left and right arrow keys to compare variations:
+- `/`: recent expenses, pending capture requests, and the capture dock.
+- `/expenses`: saved expenses, search, and collection filtering.
+- `/collections`: collection management.
+- `/settings`: empty settings page.
+- `/playground`: the original AI input and connection-status screen.
 
-| Study                                                                                      | Variants                                   |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| [Pending image receipts](http://localhost:5173/prototypes/pending-expense?variant=receipt) | `receipt`, `preview`, `attachments`        |
-| [Recording animations](http://localhost:5173/prototypes/recording?variant=pulse-wave)      | `pulse-wave`, `glass-lens`, `glass-ripple` |
+The comparison routes, variant controls, and rejected components have been removed. Pending captures appear only on Home and never contribute to saved expense totals.
 
-The receipt study compares one photo, two photos, and a photo with a note using local sample receipt images. No files are uploaded. The recording study combines a breathing pulse with a waveform, and compares two new glass treatments. Hold with a pointer, Space, or Enter to preview the animation. Reduced motion is supported.
+Manual entry supports creating, viewing, editing, and deleting mock expenses and collections. Every expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes survive navigation and reset on a full refresh.
 
-Capture controls remain visual prototypes. Text grows from a single line, and you can choose a collection, but recording, camera, gallery, and text submission do not access devices or create expenses. Manual entry opens the existing mock expense form. Pending entries do not change automatically. Settings is empty.
+Capture controls remain visual only. Text grows from a single line, and you can choose a collection. Holding the recording button with a pointer, Space, or Enter previews the animation, with reduced-motion support. Recording, camera, gallery, and text submission do not access devices or create expenses.
 
-Comparison controls appear only in development, on study routes. Use their mobile Studies menu or desktop links to navigate. Draft text and mock edits survive variant switches. Navigating between studies or refreshing resets the demo. Previous dock, manual-entry, and pending-row alternatives remain in branch history.
+### Web structure and mock data
 
-The demo uses mock data and supports creating, viewing, editing, and deleting expenses and collections. Each expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes reset when you refresh.
+- `src/routes`: file-based routes, loaders, and URL validation. The Vite plugin generates `routeTree.gen.ts`; do not edit it by hand.
+- `src/pages`: page composition.
+- `src/features`: capture, expense, collection, and workspace components. Shared buttons, inputs, dialogs, and layout live in `src/components`.
+- `src/data/demo.ts`: fixtures only.
+- `src/data/mock-api.ts`: plain async resource functions for listing, creating, updating, and deleting records. This layer assigns IDs and handles collection deletion. Pending captures are a separate resource.
+- `src/features/workspace`: dialog and notification state. The provider receives resource data from the app route loader and refreshes it after mutations.
+
+The mock data layer has no React Query hooks, artificial delays, or persistence. The app loader reads expenses and collections in parallel; Home loads pending captures separately. When persisted tRPC endpoints exist, replace these resource calls with query options and mutations, and use the QueryClient to cache loader reads and invalidate affected queries. Components receive ordinary data and callbacks, so they do not need to know how records are fetched.
+
+The backend currently exposes AI extraction, not saved expense or collection CRUD. The UI derives extraction fields and categories from the router type; saved record types in `src/lib/expenses.ts` are provisional until those endpoints exist.
 
 The demo runs with `bun run dev:web` alone. The original AI input and connection-status screen is at <http://localhost:5173/playground> and requires the API. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
 
@@ -51,6 +61,8 @@ bun run typecheck
 bun run test
 bun run build
 ```
+
+`bun run test` runs API tests and focused web tests for mock resource behavior, expense grouping, and URL filters.
 
 `bun run check` checks formatting, lint rules, and imports with Biome. Use `bun run check:fix` to apply safe fixes, or `bun run format` to apply formatting only.
 
@@ -69,7 +81,7 @@ bun run --filter @ai-expenses/api start
 bun run --filter @ai-expenses/web preview
 ```
 
-Open <http://localhost:4173>, or run `WEB_URL=http://localhost:4173 bun run smoke` to check the builds. Vite preview is for local verification. When deploying, serve `apps/web/dist` and route `/trpc` to the running API under the same origin. The API bundle is `apps/api/dist/index.js` and runs with Bun.
+Open <http://localhost:4173>, or run `WEB_URL=http://localhost:4173 bun run smoke` to check the builds. Vite preview is for local verification. When deploying, serve `apps/web/dist`, fall back to `index.html` for client routes, and route `/trpc` to the running API under the same origin. The API bundle is `apps/api/dist/index.js` and runs with Bun.
 
 ## Manage the database
 

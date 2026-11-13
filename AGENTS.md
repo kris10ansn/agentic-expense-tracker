@@ -6,3 +6,5 @@ TypeScript monorepo for expense tracking and AI extraction from text and images.
 - `apps/web` owns the React browser UI.
 
 For setup, commands, and verification, see [README.md](README.md).
+
+Branch naming: [BRANCHES.md](docs/BRANCHES.md)
