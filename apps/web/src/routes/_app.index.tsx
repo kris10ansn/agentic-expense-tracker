@@ -4,9 +4,5 @@ import { HomePage } from "../pages/HomePage";
 
 export const Route = createFileRoute("/_app/")({
   loader: () => mockApi.captures.listPending(),
-  component: HomeRoute,
+  component: HomePage,
 });
-
-function HomeRoute() {
-  return <HomePage pendingCaptures={Route.useLoaderData()} />;
-}

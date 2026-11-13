@@ -1,17 +1,15 @@
+import { getRouteApi } from "@tanstack/react-router";
 import { PageHeader } from "../components/PageHeader";
 import { CaptureDock } from "../features/capture/CaptureDock";
 import { PendingExpense } from "../features/capture/PendingExpense";
-import type { PendingCapture } from "../features/capture/types";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
 
 const RECENT_EXPENSE_LIMIT = 4;
+const route = getRouteApi("/_app/");
 
-export function HomePage({
-  pendingCaptures,
-}: {
-  pendingCaptures: PendingCapture[];
-}) {
+export function HomePage() {
+  const pendingCaptures = route.useLoaderData();
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
   const recentExpenses = [...expenses]
     .sort((a, b) => b.date.localeCompare(a.date))

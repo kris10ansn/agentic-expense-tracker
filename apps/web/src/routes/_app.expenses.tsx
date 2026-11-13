@@ -4,18 +4,5 @@ import { ExpensesPage } from "../pages/ExpensesPage";
 
 export const Route = createFileRoute("/_app/expenses")({
   validateSearch: parseExpenseSearch,
-  component: ExpensesRoute,
+  component: ExpensesPage,
 });
-
-function ExpensesRoute() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  return (
-    <ExpensesPage
-      search={search}
-      onSearchChange={(search, replace = false) =>
-        void navigate({ search, replace, resetScroll: false })
-      }
-    />
-  );
-}

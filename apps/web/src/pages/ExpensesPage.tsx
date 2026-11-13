@@ -1,3 +1,4 @@
+import { getRouteApi } from "@tanstack/react-router";
 import { AddButton } from "../components/AddButton";
 import { Button } from "../components/inputs";
 import { PageHeader } from "../components/PageHeader";
@@ -6,21 +7,25 @@ import { ExpenseHistory } from "../features/expenses/ExpenseHistory";
 import type { ExpenseSearch } from "../features/expenses/search";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
 
-export function ExpensesPage({
-  search,
-  onSearchChange,
-}: {
-  search: ExpenseSearch;
-  onSearchChange: (search: ExpenseSearch, replace?: boolean) => void;
-}) {
+const route = getRouteApi("/_app/expenses");
+
+export function ExpensesPage() {
+  const search = route.useSearch();
+  const navigate = route.useNavigate();
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
   const query = search.q?.trim().toLowerCase() ?? "";
+
   const filteredExpenses = expenses.filter(
     (expense) =>
       expense.title.toLowerCase().includes(query) &&
       (!search.collection || expense.collectionId === search.collection),
   );
   const filtered = Boolean(query || search.collection);
+
+  function onSearchChange(search: ExpenseSearch, replace = false) {
+    void navigate({ search, replace, resetScroll: false });
+  }
+
   return (
     <>
       <PageHeader

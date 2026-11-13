@@ -46,28 +46,11 @@ function MonthSection({
           {formatAmount(month.total, 2)} kr
         </span>
       </summary>
-      <div className="space-y-5 pt-1 pb-6">
-        {groupExpenses(month.expenses, "day").map((day) => (
-          <section key={day.date} aria-label={`Expenses for ${day.date}`}>
-            <div className="flex min-h-9 items-center justify-between gap-3 border-b border-neutral-200">
-              <h3 className="text-xs font-medium text-neutral-500">
-                <time dateTime={day.date}>
-                  {dayFormatter.format(new Date(`${day.date}T12:00:00`))}
-                </time>
-              </h3>
-              <p className="shrink-0 text-xs font-medium whitespace-nowrap text-neutral-600 tabular-nums">
-                <span className="sr-only">Daily total </span>
-                {formatAmount(day.total, 2)} kr
-              </p>
-            </div>
-            <ExpenseList
-              expenses={day.expenses}
-              collections={collections}
-              onSelectExpense={onSelectExpense}
-            />
-          </section>
-        ))}
-      </div>
+      <DaySections
+        expenses={month.expenses}
+        collections={collections}
+        onSelectExpense={onSelectExpense}
+      />
     </details>
   );
 }
@@ -88,6 +71,33 @@ export function ExpenseHistory({
           collections={collections}
           onSelectExpense={onSelectExpense}
         />
+      ))}
+    </div>
+  );
+}
+
+function DaySections({ expenses, collections, onSelectExpense }: HistoryProps) {
+  return (
+    <div className="space-y-5 pt-1 pb-6">
+      {groupExpenses(expenses, "day").map((day) => (
+        <section key={day.date} aria-label={`Expenses for ${day.date}`}>
+          <div className="flex min-h-9 items-center justify-between gap-3 border-b border-neutral-200">
+            <h3 className="text-xs font-medium text-neutral-500">
+              <time dateTime={day.date}>
+                {dayFormatter.format(new Date(`${day.date}T12:00:00`))}
+              </time>
+            </h3>
+            <p className="shrink-0 text-xs font-medium whitespace-nowrap text-neutral-600 tabular-nums">
+              <span className="sr-only">Daily total </span>
+              {formatAmount(day.total, 2)} kr
+            </p>
+          </div>
+          <ExpenseList
+            expenses={day.expenses}
+            collections={collections}
+            onSelectExpense={onSelectExpense}
+          />
+        </section>
       ))}
     </div>
   );

@@ -6,7 +6,7 @@ import type { ExpenseSearch } from "./search";
 
 export function ExpenseFilters({
   collections,
-  value,
+  value: search,
   onChange,
 }: {
   collections: Collection[];
@@ -20,17 +20,17 @@ export function ExpenseFilters({
         <TextInput
           aria-label="Search expenses"
           placeholder="Search"
-          value={value.q ?? ""}
+          value={search.q ?? ""}
           onChange={(event) =>
-            onChange({ ...value, q: event.target.value || undefined }, true)
+            onChange({ ...search, q: event.target.value || undefined }, true)
           }
           className="border-neutral-200 bg-transparent pr-10 pl-9 text-sm shadow-none"
         />
-        {value.q && (
+        {search.q && (
           <IconButton
             aria-label="Clear search"
             className="absolute top-0 right-0"
-            onClick={() => onChange({ ...value, q: undefined }, true)}
+            onClick={() => onChange({ ...search, q: undefined }, true)}
           >
             <X className="size-4" />
           </IconButton>
@@ -38,16 +38,16 @@ export function ExpenseFilters({
       </div>
       <Select
         aria-label="Collection"
-        value={value.collection ?? ""}
+        value={search.collection ?? ""}
         onChange={(event) =>
-          onChange({ ...value, collection: event.target.value || undefined })
+          onChange({ ...search, collection: event.target.value || undefined })
         }
         className="w-36 shrink-0 rounded-lg border-neutral-200 bg-transparent text-xs text-neutral-600 shadow-none sm:ml-auto sm:w-auto sm:text-xs"
       >
         <option value="">All collections</option>
-        {value.collection &&
-          !collections.some((item) => item.id === value.collection) && (
-            <option value={value.collection}>Deleted collection</option>
+        {search.collection &&
+          !collections.some((item) => item.id === search.collection) && (
+            <option value={search.collection}>Deleted collection</option>
           )}
         {collections.map((collection) => (
           <option key={collection.id} value={collection.id}>
