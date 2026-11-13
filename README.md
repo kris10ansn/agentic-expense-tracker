@@ -32,24 +32,22 @@ TanStack Router owns the routes and typed collection/search filters:
 
 The comparison routes, variant controls, and rejected components have been removed. Pending captures appear only on Home and never contribute to saved expense totals.
 
-Manual entry supports creating, viewing, editing, and deleting mock expenses and collections. Every expense belongs to a collection. Deleting a collection also deletes its expenses after confirmation. Changes survive navigation and reset on a full refresh.
+The workspace starts with no expenses, collections, or pending captures. The mock API has been removed. Create, update, and delete callbacks log their inputs to the console until API mutations are connected; they do not change or persist records.
 
 Capture controls remain visual only. Text grows from a single line, and you can choose a collection. Holding the recording button with a pointer, Space, or Enter previews the animation, with reduced-motion support. Recording, camera, gallery, and text submission do not access devices or create expenses.
 
-### Web structure and mock data
+### Web structure and data loading
 
 - `src/routes`: file-based routes, loaders, and URL validation. The Vite plugin generates `routeTree.gen.ts`; do not edit it by hand.
 - `src/pages`: page composition.
 - `src/features`: capture, expense, collection, and workspace components. Shared buttons, inputs, dialogs, and layout live in `src/components`.
-- `src/data/demo.ts`: fixtures only.
-- `src/data/mock-api.ts`: plain async resource functions for listing, creating, updating, and deleting records. This layer assigns IDs and handles collection deletion. Pending captures are a separate resource.
-- `src/features/workspace`: dialog and notification state. The provider receives resource data from the app route loader and refreshes it after mutations.
+- `src/features/workspace`: layout and dialog state. `WorkspaceLayout` supplies empty arrays until data loading is connected.
 
-The mock data layer has no React Query hooks, artificial delays, or persistence. The app loader reads expenses and collections in parallel; Home loads pending captures separately. When persisted tRPC endpoints exist, replace these resource calls with query options and mutations, and use the QueryClient to cache loader reads and invalidate affected queries. Components receive ordinary data and callbacks, so they do not need to know how records are fetched.
+TanStack Query and the tRPC options proxy are already configured. Add list queries in `WorkspaceLayout`, pass their results to `WorkspaceProvider`, and supply mutation callbacks to `WorkspaceDialogs`. Invalidate the affected queries after writes. Components receive ordinary data and callbacks, so they do not need to know how records are fetched.
 
-The backend currently exposes AI extraction, not saved expense or collection CRUD. The UI derives extraction fields and categories from the router type; saved record types in `src/lib/expenses.ts` are provisional until those endpoints exist.
+The backend exposes AI extraction and saved expense and collection CRUD. The UI derives extraction fields and categories from the router type; saved record types in `src/lib/expenses.ts` still use the original UI shape and need to be aligned with the persisted endpoints before integration.
 
-The demo runs with `bun run dev:web` alone. The original AI input and connection-status screen is at <http://localhost:5173/playground> and requires the API. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
+The empty workspace runs with `bun run dev:web` alone. The original AI input and connection-status screen is at <http://localhost:5173/playground> and requires the API. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
 
 `bun run dev:api` and `bun run dev:web` start the apps separately. Both read settings from the root `.env`. Vite proxies `/trpc` to the API using `API_PORT` and keeps database settings out of browser code.
 
@@ -62,7 +60,7 @@ bun run test
 bun run build
 ```
 
-`bun run test` runs API tests and focused web tests for mock resource behavior, expense grouping, and URL filters.
+`bun run test` runs API tests and focused web tests for amount formatting, expense grouping, and URL filters.
 
 `bun run check` checks formatting, lint rules, and imports with Biome. Use `bun run check:fix` to apply safe fixes, or `bun run format` to apply formatting only.
 
