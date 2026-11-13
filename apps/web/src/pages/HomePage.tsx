@@ -1,19 +1,21 @@
-import { getRouteApi } from "@tanstack/react-router";
+import { useCallback, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import {
   CaptureDock,
   type CaptureDockData,
 } from "../features/capture/CaptureDock";
 import { PendingExpense } from "../features/capture/PendingExpense";
+import type { PendingCapture } from "../features/capture/types";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
-import { useCallback } from "react";
 
 const RECENT_EXPENSE_LIMIT = 4;
-const route = getRouteApi("/_app/");
 
 export function HomePage() {
-  const pendingCaptures = route.useLoaderData();
+  const [pendingCaptures, setPendingCaptures] = useState(
+    [] as PendingCapture[],
+  );
+
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
   const recentExpenses = [...expenses]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -21,9 +23,19 @@ export function HomePage() {
 
   const handleSubmit = useCallback(
     ({ description, files }: CaptureDockData) => {
-      console.log("Submit!", { description, files });
+      console.log({ description, files });
+
+      setPendingCaptures([
+        {
+          id: Math.random().toString(),
+          collectionId: "COLLECTION_ID",
+          description,
+          images: files,
+        },
+        ...pendingCaptures,
+      ]);
     },
-    [],
+    [pendingCaptures],
   );
 
   return (
@@ -35,7 +47,7 @@ export function HomePage() {
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
           {pendingCaptures.map((capture) => (
-            <PendingExpense key={capture.id} input={capture.input} />
+            <PendingExpense key={capture.id} capture={capture} />
           ))}
           <ExpenseList
             expenses={recentExpenses}

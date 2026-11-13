@@ -164,16 +164,7 @@ export const pendingCaptures: PendingCapture[] = [
   {
     id: "pending-lunch",
     collectionId: "everyday",
-    input: {
-      kind: "images",
-      images: [
-        {
-          id: "lunch",
-          src: "/demo-receipts/lunch-receipt.svg",
-          name: "lunch-receipt.jpg",
-          alt: "Sample receipt for lunch at Godt Brød, 185 kr",
-        },
-      ],
-    },
+    images: [new File([], "filename.png")],
+    description: "Description!",
   },
 ];

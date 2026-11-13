@@ -8,17 +8,17 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { twMerge } from "tailwind-merge";
+import { ImagePreview } from "../../components/ImagePreview";
 import {
   Button,
   FileInputButton,
+  type FileInputButtonProps,
   IconButton,
   TextArea,
-  type FileInputButtonProps,
 } from "../../components/inputs";
+import { createTranscript, useSpeech } from "../../hooks/useSpeech";
 import type { Collection } from "../../lib/expenses";
 import { RecordingButton } from "./RecordingButton";
-import { createTranscript, useSpeech } from "../../hooks/useSpeech";
-import { ImagePreview } from "../../components/ImagePreview";
 
 export type CaptureDockData = { description: string; files: File[] };
 
@@ -36,7 +36,7 @@ export function CaptureDock({
   onManualEntry,
 }: CaptureDockProps) {
   const [description, setDescription] = useState("");
-  const [files, setFiles] = useState(new Array<File>());
+  const [files, setFiles] = useState([] as File[]);
 
   const handleSpeechResults = useCallback(
     (results: SpeechRecognitionResultList) => {
@@ -47,8 +47,14 @@ export function CaptureDock({
 
   const speech = useSpeech({ onResults: handleSpeechResults });
 
-  const handleRecordingStart = useCallback(() => speech.startRecording?.(), []);
-  const handleRecordingStop = useCallback(() => speech.stopRecording?.(), []);
+  const handleRecordingStart = useCallback(
+    () => speech.startRecording?.(),
+    [speech.startRecording],
+  );
+  const handleRecordingStop = useCallback(
+    () => speech.stopRecording?.(),
+    [speech.stopRecording],
+  );
 
   const handleFileChange = useCallback(
     (list: FileList) => setFiles([...files, ...list]),
@@ -62,7 +68,10 @@ export function CaptureDock({
 
   const submit = useCallback(() => {
     onSubmit({ description, files });
-  }, [onSubmit]);
+
+    setDescription("");
+    setFiles([]);
+  }, [onSubmit, files, description]);
 
   const [collectionId, setCollectionId] = useState("");
   const selectedCollection =
@@ -95,7 +104,7 @@ export function CaptureDock({
         </Button>
       </div>
 
-      <div className="flex flex-row gap-2 mb-2">
+      <div className="mb-2 flex flex-row flex-wrap gap-2">
         {files.map((file, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: Index will not change
           <ImagePreview file={file} key={index} removeFile={handleRemoveFile} />
@@ -103,7 +112,7 @@ export function CaptureDock({
       </div>
 
       <DescriptionComposer
-        disabled={!selectedCollection || !description}
+        disabled={files.length === 0 && (!selectedCollection || !description)}
         value={description}
         onChange={setDescription}
         onSubmit={submit}
