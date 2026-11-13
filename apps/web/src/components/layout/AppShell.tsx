@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { ArrowUpRight, FolderOpen, House, List, Settings } from "lucide-react";
+import { FolderOpen, House, List, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 import type { Collection } from "../../lib/expenses";
@@ -81,13 +81,6 @@ export function AppShell({
             </Link>
           ))}
         </div>
-        <Link
-          to="/playground"
-          className="mt-auto flex min-h-11 items-center gap-1 px-3 text-xs text-neutral-500"
-        >
-          Playground
-          <ArrowUpRight className="size-3" />
-        </Link>
       </aside>
       <div className="min-h-dvh bg-white lg:ml-56 lg:min-h-[calc(100dvh-var(--spacing)*10)] lg:rounded-2xl lg:border lg:border-neutral-200">
         <main

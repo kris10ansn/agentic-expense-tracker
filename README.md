@@ -28,7 +28,6 @@ TanStack Router owns the routes and typed collection/search filters:
 - `/expenses`: saved expenses, search, and collection filtering.
 - `/collections`: collection management.
 - `/settings`: empty settings page.
-- `/playground`: the original AI input and connection-status screen.
 
 The comparison routes, variant controls, and rejected components have been removed. Pending captures appear only on Home and never contribute to saved expense totals.
 
@@ -47,7 +46,7 @@ TanStack Query and the tRPC options proxy are already configured. Add list queri
 
 The backend exposes AI extraction and saved expense and collection CRUD. The UI derives extraction fields and categories from the router type; saved record types in `src/lib/expenses.ts` still use the original UI shape and need to be aligned with the persisted endpoints before integration.
 
-The empty workspace runs with `bun run dev:web` alone. The original AI input and connection-status screen is at <http://localhost:5173/playground> and requires the API. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
+The empty workspace runs with `bun run dev:web` alone. The API listens on <http://localhost:3001>, serves tRPC at `/trpc`, and exposes a process health check at `/health`.
 
 `bun run dev:api` and `bun run dev:web` start the apps separately. Both read settings from the root `.env`. Vite proxies `/trpc` to the API using `API_PORT` and keeps database settings out of browser code.
 

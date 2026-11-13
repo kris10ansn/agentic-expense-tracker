@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppCollectionsRouteImport } from './routes/_app.collections'
 import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
@@ -18,11 +17,6 @@ import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlaygroundRoute = PlaygroundRouteImport.update({
-  id: '/playground',
-  path: '/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -48,13 +42,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/playground': typeof PlaygroundRoute
   '/collections': typeof AppCollectionsRoute
   '/expenses': typeof AppExpensesRoute
   '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesByTo {
-  '/playground': typeof PlaygroundRoute
   '/collections': typeof AppCollectionsRoute
   '/expenses': typeof AppExpensesRoute
   '/settings': typeof AppSettingsRoute
@@ -63,7 +55,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
-  '/playground': typeof PlaygroundRoute
   '/_app/collections': typeof AppCollectionsRoute
   '/_app/expenses': typeof AppExpensesRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -71,13 +62,12 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/playground' | '/collections' | '/expenses' | '/settings'
+  fullPaths: '/' | '/collections' | '/expenses' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/playground' | '/collections' | '/expenses' | '/settings' | '/'
+  to: '/collections' | '/expenses' | '/settings' | '/'
   id:
     | '__root__'
     | '/_app'
-    | '/playground'
     | '/_app/collections'
     | '/_app/expenses'
     | '/_app/settings'
@@ -86,7 +76,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
-  PlaygroundRoute: typeof PlaygroundRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -96,13 +85,6 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/playground': {
-      id: '/playground'
-      path: '/playground'
-      fullPath: '/playground'
-      preLoaderRoute: typeof PlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -154,7 +136,6 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
-  PlaygroundRoute: PlaygroundRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
