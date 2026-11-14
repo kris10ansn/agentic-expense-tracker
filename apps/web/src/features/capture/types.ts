@@ -9,5 +9,5 @@ export type PendingCapture = {
   id: string;
   collectionId: string;
   description: string;
-  images: File[];
+  files: File[];
 };

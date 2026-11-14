@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { sql } from "drizzle-orm";
+import { capturesRouter } from "./captures/router";
 import { collectionsRouter } from "./collections/router";
 import { expensesRouter } from "./expenses/router";
 import { publicProcedure, t } from "./trpc";
@@ -20,6 +21,7 @@ export const appRouter = t.router({
   }),
   expenses: expensesRouter,
   collections: collectionsRouter,
+  captures: capturesRouter,
 });
 
 export type AppRouter = typeof appRouter;

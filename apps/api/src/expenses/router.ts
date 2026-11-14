@@ -9,9 +9,6 @@ import {
   expenseUpdateSchema,
 } from "../db/schema";
 import { publicProcedure, t } from "../trpc";
-import { extractExpenses } from "./extract";
-import { expenseFormSchema } from "./input";
-import { expenseExtractionsSchema } from "./schema";
 
 export const expensesRouter = t.router({
   list: publicProcedure.output(expensesSchema).query(({ ctx }) => {
@@ -98,9 +95,4 @@ export const expensesRouter = t.router({
 
       return expense;
     }),
-
-  addAgentic: publicProcedure
-    .input(expenseFormSchema)
-    .output(expenseExtractionsSchema)
-    .mutation(({ input }) => extractExpenses(input)),
 });

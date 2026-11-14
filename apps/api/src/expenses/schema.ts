@@ -27,12 +27,13 @@ const modelExpenseSchema = expenseCreateSchema.extend({
     .optional(),
 });
 
-// Gemini emits JSON strings; parse dates once before returning application data.
+export const modelFailuresSchema = z.array(
+  expenseExtractionsSchema.shape.failures.element.extend({
+    partialExpense: modelExpenseSchema.partial(),
+  }),
+);
+
 export const expenseModelOutputSchema = expenseExtractionsSchema.extend({
   expenses: z.array(modelExpenseSchema),
-  failures: z.array(
-    expenseExtractionsSchema.shape.failures.element.extend({
-      partialExpense: modelExpenseSchema.partial(),
-    }),
-  ),
+  failures: modelFailuresSchema,
 });

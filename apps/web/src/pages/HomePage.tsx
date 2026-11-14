@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -8,13 +9,25 @@ import { PendingExpense } from "../features/capture/PendingExpense";
 import type { PendingCapture } from "../features/capture/types";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
+import { trpc } from "../trpc";
 
-const RECENT_EXPENSE_LIMIT = 4;
+const createFormData = (capture: Omit<PendingCapture, "id">) => {
+  const formData = new FormData();
+
+  formData.set("description", capture.description);
+  formData.set("collectionId", capture.collectionId);
+
+  for (const file of capture.files) {
+    formData.append("files", file);
+  }
+
+  return formData;
+};
 
 export function HomePage() {
-  const [pendingCaptures, setPendingCaptures] = useState(
-    [] as PendingCapture[],
-  );
+  const startCapture = useMutation(trpc.captures.start.mutationOptions());
+
+  const [pendingCaptures, setPendingCaptures] = useState<PendingCapture[]>([]);
 
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
   const recentExpenses = [...expenses].sort(
@@ -22,20 +35,21 @@ export function HomePage() {
   );
 
   const handleSubmit = useCallback(
-    ({ description, files }: CaptureDockData) => {
-      console.log({ description, files });
+    async ({ description, files, collectionId }: CaptureDockData) => {
+      const data = { description, files, collectionId };
+      const formData = createFormData(data);
+      const { captureId } = await startCapture.mutateAsync(formData);
 
-      setPendingCaptures([
-        {
-          id: Math.random().toString(),
-          collectionId: "COLLECTION_ID",
-          description,
-          images: files,
-        },
-        ...pendingCaptures,
-      ]);
+      setPendingCaptures([...pendingCaptures, { id: captureId, ...data }]);
     },
-    [pendingCaptures],
+    [pendingCaptures, startCapture.mutateAsync],
+  );
+
+  const handleCaptureComplete = useCallback(
+    (capture: PendingCapture) => {
+      setPendingCaptures(pendingCaptures.filter((c) => c.id !== capture.id));
+    },
+    [pendingCaptures.filter],
   );
 
   return (
@@ -47,7 +61,11 @@ export function HomePage() {
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
           {pendingCaptures.map((capture) => (
-            <PendingExpense key={capture.id} capture={capture} />
+            <PendingExpense
+              key={capture.id}
+              capture={capture}
+              onComplete={handleCaptureComplete.bind(null, capture)}
+            />
           ))}
           <ExpenseList
             expenses={recentExpenses}

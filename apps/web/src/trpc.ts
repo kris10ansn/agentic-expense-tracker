@@ -3,6 +3,7 @@ import {
   createTRPCClient,
   httpBatchLink,
   httpLink,
+  httpSubscriptionLink,
   isNonJsonSerializable,
   splitLink,
 } from "@trpc/client";
@@ -17,9 +18,13 @@ import { queryClient } from "./lib/query-client";
 const client = createTRPCClient<AppRouter>({
   links: [
     splitLink({
-      condition: (operation) => isNonJsonSerializable(operation.input),
-      true: httpLink({ url: "/trpc", transformer: superjson }),
-      false: httpBatchLink({ url: "/trpc", transformer: superjson }),
+      condition: (operation) => operation.type === "subscription",
+      true: httpSubscriptionLink({ url: "/trpc", transformer: superjson }),
+      false: splitLink({
+        condition: (operation) => isNonJsonSerializable(operation.input),
+        true: httpLink({ url: "/trpc", transformer: superjson }),
+        false: httpBatchLink({ url: "/trpc", transformer: superjson }),
+      }),
     }),
   ],
 });

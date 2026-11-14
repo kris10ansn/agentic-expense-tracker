@@ -1,14 +1,56 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { LoaderCircle } from "lucide-react";
+import { useMemo } from "react";
 import { twMerge } from "tailwind-merge";
+import { trpc } from "../../trpc";
 import type { PendingCapture } from "./types";
 
+export type PendingExpenseProps = {
+  capture: PendingCapture;
+  className?: string;
+  onComplete: () => void;
+};
 export function PendingExpense({
   capture,
   className,
-}: {
-  capture: PendingCapture;
-  className?: string;
-}) {
+  onComplete,
+}: PendingExpenseProps) {
+  const queryClient = useQueryClient();
+
+  const subscription = useSubscription(
+    trpc.captures.watch.subscriptionOptions(capture.id, {
+      onData: (data) => {
+        if (data === undefined) return;
+
+        if (data.status === "complete") {
+          const queryKey = trpc.expenses.list.queryKey();
+
+          queryClient.setQueryData(queryKey, (expenses) =>
+            expenses !== undefined
+              ? [...expenses, ...data.createdExpenses]
+              : undefined,
+          );
+
+          queryClient.invalidateQueries({ queryKey });
+        }
+      },
+      onComplete: () => onComplete(),
+    }),
+  );
+
+  const message = useMemo(() => {
+    const status = subscription.data?.status;
+
+    if (status === undefined) return "Sending data...";
+    if (status === "extracting") return "Running AI analysis...";
+    if (status === "saving") return "Saving new expenses...";
+    if (status === "complete") return "Complete!";
+    if (status === "failed") return "Failed generating expenses";
+
+    throw new Error(`Illegal status message [${status}]`);
+  }, [subscription]);
+
   return (
     <div
       role="status"
@@ -34,10 +76,10 @@ export function PendingExpense({
             {capture.description}
           </p>
         )}
-        {capture.images.length > 0 && <CompactImages images={capture.images} />}
+        {capture.files.length > 0 && <CompactImages images={capture.files} />}
       </div>
       <div className="flex items-center gap-2 border-t border-dashed border-neutral-200 bg-neutral-50 px-4 py-3">
-        <p className="text-xs font-medium text-neutral-700">Waiting for AI</p>
+        <p className="text-xs font-medium text-neutral-700">{message}</p>
         <span className="ml-auto text-xs text-neutral-500">Not saved yet</span>
       </div>
     </div>

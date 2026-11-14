@@ -39,8 +39,14 @@ export function CaptureDock({
   onSubmit,
   onManualEntry,
 }: CaptureDockProps) {
+  const [collectionId, setCollectionId] = useState("");
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState([] as File[]);
+
+  const selectedCollection =
+    collections.find((item) => item.id === collectionId)?.id ??
+    collections[0]?.id ??
+    "";
 
   const handleSpeechResults = useCallback(
     (results: SpeechRecognitionResultList) => {
@@ -50,7 +56,6 @@ export function CaptureDock({
   );
 
   const speech = useSpeech({ onResults: handleSpeechResults });
-  const [collectionId, setCollectionId] = useState("");
 
   const handleRecordingStart = useCallback(
     () => speech.startRecording?.(),
@@ -72,16 +77,11 @@ export function CaptureDock({
   );
 
   const submit = useCallback(() => {
-    onSubmit({ collectionId, description, files });
+    onSubmit({ collectionId: selectedCollection, description, files });
 
     setDescription("");
     setFiles([]);
-  }, [onSubmit, files, description, collectionId]);
-
-  const selectedCollection =
-    collections.find((item) => item.id === collectionId)?.id ??
-    collections[0]?.id ??
-    "";
+  }, [onSubmit, files, description, selectedCollection]);
 
   return (
     <section
