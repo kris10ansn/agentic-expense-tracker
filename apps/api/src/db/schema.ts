@@ -1,12 +1,18 @@
 import {
+  type AnyPgColumn,
+  boolean,
   integer,
+  jsonb,
+  pgEnum,
   pgTable,
+  text,
   timestamp,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { modelFailuresSchema } from "../expenses/schema";
 
 export const expenseCollectionTable = pgTable("expense_collections", {
   id: uuid().primaryKey().defaultRandom().notNull(),
@@ -46,6 +52,7 @@ export const expensesTable = pgTable("expenses", {
   merchant: varchar({ length: 255 }),
 
   category: varchar({ length: 255 }).notNull(),
+  captureId: uuid().references((): AnyPgColumn => capturesTable.id),
 
   purchasedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
@@ -68,3 +75,22 @@ export const expenseCreateSchema = createInsertSchema(expensesTable, {
 export const expenseUpdateSchema = expenseCreateSchema.partial().extend({
   id: expenseIdSchema.shape.id,
 });
+
+export const captureStatus = pgEnum("capture_status", [
+  "extracting",
+  "saving",
+  "complete",
+  "failed",
+]);
+
+export const capturesTable = pgTable("captures", {
+  id: uuid().primaryKey().defaultRandom().notNull(),
+  status: captureStatus().notNull(),
+  active: boolean().notNull(),
+  description: text().notNull(),
+  fileNames: text().array().notNull(),
+  failures: jsonb().$type<z.infer<typeof modelFailuresSchema>>(),
+});
+
+export const captureSchema = createSelectSchema(capturesTable);
+export type Capture = z.infer<typeof captureSchema>;

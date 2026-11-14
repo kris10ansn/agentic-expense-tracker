@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -6,12 +6,11 @@ import {
   type CaptureDockData,
 } from "../features/capture/CaptureDock";
 import { PendingExpense } from "../features/capture/PendingExpense";
-import type { PendingCapture } from "../features/capture/types";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
 import { trpc } from "../trpc";
 
-const createFormData = (capture: Omit<PendingCapture, "id">) => {
+const createFormData = (capture: Omit<CaptureDockData, "id">) => {
   const formData = new FormData();
 
   formData.set("description", capture.description);
@@ -25,9 +24,25 @@ const createFormData = (capture: Omit<PendingCapture, "id">) => {
 };
 
 export function HomePage() {
-  const startCapture = useMutation(trpc.captures.start.mutationOptions());
+  const queryClient = useQueryClient();
 
-  const [pendingCaptures, setPendingCaptures] = useState<PendingCapture[]>([]);
+  const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
+
+  const startCapture = useMutation(
+    trpc.captures.start.mutationOptions({
+      onSuccess: (capture) => {
+        const activeCapturesKey = trpc.captures.listActive.queryKey();
+
+        queryClient.setQueryData(activeCapturesKey, (captures) =>
+          captures !== undefined ? [...captures, capture] : undefined,
+        );
+
+        queryClient.invalidateQueries({ queryKey: activeCapturesKey });
+      },
+    }),
+  );
+
+  const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
 
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
   const recentExpenses = [...expenses].sort(
@@ -38,18 +53,11 @@ export function HomePage() {
     async ({ description, files, collectionId }: CaptureDockData) => {
       const data = { description, files, collectionId };
       const formData = createFormData(data);
-      const { captureId } = await startCapture.mutateAsync(formData);
+      const capture = await startCapture.mutateAsync(formData);
 
-      setPendingCaptures([...pendingCaptures, { id: captureId, ...data }]);
+      setFilesRecord({ ...filesRecord, [capture.id]: files });
     },
-    [pendingCaptures, startCapture.mutateAsync],
-  );
-
-  const handleCaptureComplete = useCallback(
-    (capture: PendingCapture) => {
-      setPendingCaptures(pendingCaptures.filter((c) => c.id !== capture.id));
-    },
-    [pendingCaptures.filter],
+    [startCapture.mutateAsync, filesRecord],
   );
 
   return (
@@ -60,11 +68,11 @@ export function HomePage() {
           aria-label="Recent expenses"
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
-          {pendingCaptures.map((capture) => (
+          {pendingCaptures.data?.map((capture) => (
             <PendingExpense
               key={capture.id}
               capture={capture}
-              onComplete={handleCaptureComplete.bind(null, capture)}
+              files={filesRecord[capture.id] ?? []}
             />
           ))}
           <ExpenseList

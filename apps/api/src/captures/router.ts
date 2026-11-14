@@ -1,17 +1,33 @@
 import { EventEmitter, on } from "node:events";
+import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import z from "zod";
 import type { Database } from "../db";
-import { expenseSchema, expensesTable } from "../db/schema";
+import {
+  type Capture,
+  capturesTable,
+  expenseSchema,
+  expensesTable,
+} from "../db/schema";
 import { extractExpenses } from "../expenses/extract";
 import { expenseFormSchema } from "../expenses/input";
 import { modelFailuresSchema } from "../expenses/schema";
 import { publicProcedure, t } from "../trpc";
 
-const captures = new Map<string, CaptureUpdate>();
 const captureEvents = new EventEmitter();
 
-function publishCaptureUpdate(captureId: string, update: CaptureUpdate) {
-  captures.set(captureId, update);
+async function publishCaptureUpdate(
+  captureId: string,
+  update: CaptureUpdate,
+  db: Database,
+) {
+  const active = !(update.status === "complete" || update.status === "failed");
+
+  await db
+    .update(capturesTable)
+    .set({ status: update.status, active })
+    .where(eq(capturesTable.id, captureId));
+
   captureEvents.emit(captureId);
 }
 
@@ -22,11 +38,12 @@ async function processCapture(
 ) {
   try {
     const extract = await extractExpenses(input);
-    publishCaptureUpdate(captureId, { status: "saving" });
+    publishCaptureUpdate(captureId, { status: "saving" }, db);
 
     const inserts = extract.expenses.map((e) => ({
       ...e,
       collectionId: input.collectionId,
+      captureId,
     }));
 
     const createdExpenses =
@@ -34,15 +51,36 @@ async function processCapture(
         ? await db.insert(expensesTable).values(inserts).returning()
         : [];
 
-    publishCaptureUpdate(captureId, {
-      status: "complete",
-      createdExpenses,
-      failures: extract.failures,
-    });
+    publishCaptureUpdate(
+      captureId,
+      {
+        status: "complete",
+        createdExpenses,
+        failures: extract.failures,
+      },
+      db,
+    );
   } catch (e: unknown) {
     const error = e instanceof Error ? e.message : "Extraction failed";
-    publishCaptureUpdate(captureId, { status: "failed", error });
+    publishCaptureUpdate(captureId, { status: "failed", error }, db);
   }
+}
+
+async function getCapture(id: Capture["id"], db: Database): Promise<Capture> {
+  const [capture] = await db
+    .select()
+    .from(capturesTable)
+    .where(eq(capturesTable.id, id))
+    .limit(1);
+
+  if (capture === undefined) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: `Capture with id [${id}] not found!`,
+    });
+  }
+
+  return capture;
 }
 
 export const captureUpdateStatus = z.enum([
@@ -70,34 +108,56 @@ const captureUpdateSchema = z.discriminatedUnion("status", [
 type CaptureUpdate = z.infer<typeof captureUpdateSchema>;
 
 export const capturesRouter = t.router({
+  listActive: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db
+      .select()
+      .from(capturesTable)
+      .where(eq(capturesTable.active, true));
+  }),
+
   start: publicProcedure
     .input(expenseFormSchema)
-    .output(z.object({ captureId: z.uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const captureId = crypto.randomUUID();
+      const [capture] = await ctx.db
+        .insert(capturesTable)
+        .values({
+          active: true,
+          status: "extracting",
+          description: input.description,
+          fileNames: input.files.map((file) => file.name),
+        })
+        .returning();
 
-      publishCaptureUpdate(captureId, { status: "extracting" });
-      void processCapture(captureId, input, ctx.db);
+      if (capture === undefined) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error creating capture.",
+        });
+      }
 
-      return { captureId };
+      publishCaptureUpdate(capture.id, { status: "extracting" }, ctx.db);
+      void processCapture(capture.id, input, ctx.db);
+
+      return capture;
     }),
 
   watch: publicProcedure.input(z.uuid()).subscription(async function* ({
     input: captureId,
     signal,
+    ctx,
   }) {
     const changes = on(captureEvents, captureId, { signal });
 
-    const isComplete = (update: CaptureUpdate | undefined) =>
-      update?.status === "complete" || update?.status === "failed";
+    const isComplete = (update: Capture) =>
+      update.status === "complete" || update.status === "failed";
 
     try {
-      const initialUpdate = captures.get(captureId);
+      const initialUpdate = await getCapture(captureId, ctx.db);
       yield initialUpdate;
       if (isComplete(initialUpdate)) return;
 
       for await (const _ of changes) {
-        const update = captures.get(captureId);
+        const update = await getCapture(captureId, ctx.db);
         yield update;
 
         if (isComplete(update)) return;

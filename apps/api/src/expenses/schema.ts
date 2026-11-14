@@ -1,17 +1,19 @@
 import { z } from "zod";
 import { expenseCreateSchema } from "../db/schema";
 
+const extractedExpenseSchema = expenseCreateSchema.omit({ captureId: true });
+
 const suggestionSchema = z.object({
-  field: expenseCreateSchema.keyof(),
+  field: extractedExpenseSchema.keyof(),
   candidates: z.array(z.string()),
 });
 
 export const expenseExtractionsSchema = z.object({
-  expenses: z.array(expenseCreateSchema),
+  expenses: z.array(extractedExpenseSchema),
 
   failures: z.array(
     z.object({
-      partialExpense: expenseCreateSchema.partial(),
+      partialExpense: extractedExpenseSchema.partial(),
       sourceText: z.string(),
       reason: z.string(),
       suggestions: z.array(suggestionSchema),
@@ -19,7 +21,7 @@ export const expenseExtractionsSchema = z.object({
   ),
 });
 
-const modelExpenseSchema = expenseCreateSchema.extend({
+const modelExpenseSchema = extractedExpenseSchema.extend({
   purchasedAt: z.iso
     .datetime({ offset: true })
     .describe("Exact ISO 8601 timestamp with timezone. Omit when unknown.")

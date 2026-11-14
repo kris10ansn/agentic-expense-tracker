@@ -3,18 +3,18 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { LoaderCircle } from "lucide-react";
 import { useMemo } from "react";
 import { twMerge } from "tailwind-merge";
+import type { Capture } from "../../../../api/src/db/schema";
 import { trpc } from "../../trpc";
-import type { PendingCapture } from "./types";
 
 export type PendingExpenseProps = {
-  capture: PendingCapture;
+  capture: Capture;
+  files: File[];
   className?: string;
-  onComplete: () => void;
 };
 export function PendingExpense({
   capture,
+  files,
   className,
-  onComplete,
 }: PendingExpenseProps) {
   const queryClient = useQueryClient();
 
@@ -24,18 +24,13 @@ export function PendingExpense({
         if (data === undefined) return;
 
         if (data.status === "complete") {
-          const queryKey = trpc.expenses.list.queryKey();
+          const expensesKey = trpc.expenses.list.queryKey();
+          queryClient.invalidateQueries({ queryKey: expensesKey });
 
-          queryClient.setQueryData(queryKey, (expenses) =>
-            expenses !== undefined
-              ? [...expenses, ...data.createdExpenses]
-              : undefined,
-          );
-
-          queryClient.invalidateQueries({ queryKey });
+          const activeCapturesKey = trpc.captures.listActive.queryKey();
+          queryClient.invalidateQueries({ queryKey: activeCapturesKey });
         }
       },
-      onComplete: () => onComplete(),
     }),
   );
 
@@ -76,7 +71,7 @@ export function PendingExpense({
             {capture.description}
           </p>
         )}
-        {capture.files.length > 0 && <CompactImages images={capture.files} />}
+        {files.length > 0 && <CompactImages images={files} />}
       </div>
       <div className="flex items-center gap-2 border-t border-dashed border-neutral-200 bg-neutral-50 px-4 py-3">
         <p className="text-xs font-medium text-neutral-700">{message}</p>
