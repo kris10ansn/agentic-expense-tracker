@@ -40,6 +40,7 @@ console.info({ event: "api_started", url: server.url.href });
 async function shutdown() {
   await server.stop();
   await db.$client.close();
+  process.exit(0);
 }
 
 process.once("SIGINT", shutdown);
