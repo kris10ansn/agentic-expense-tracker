@@ -1,14 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
   "files": {
-    "includes": [
-      "**",
-      "!!**/node_modules",
-      "!!**/dist",
-      "!!apps/api/drizzle",
-      "!bun.lock",
-      "!!apps/web/src/routeTree.gen.ts"
-    ],
+    "includes": ["**", "!!**/node_modules", "!!**/dist", "!bun.lock"],
     "ignoreUnknown": true
   },
   "formatter": {
@@ -19,10 +12,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended",
-      "nursery": {
-        "useTailwindSortedClasses": "error"
-      }
+      "preset": "recommended"
     }
   },
   "assist": {
@@ -30,11 +20,6 @@
       "source": {
         "organizeImports": "on"
       }
-    }
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
     }
   }
 }
