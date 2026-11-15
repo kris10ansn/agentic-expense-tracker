@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   expenseCreateSchema,
   expenseIdSchema,
@@ -12,7 +12,10 @@ import { publicProcedure, t } from "../trpc";
 
 export const expensesRouter = t.router({
   list: publicProcedure.output(expensesSchema).query(({ ctx }) => {
-    return ctx.db.select().from(expensesTable);
+    return ctx.db
+      .select()
+      .from(expensesTable)
+      .orderBy(desc(expensesTable.createdAt));
   }),
 
   get: publicProcedure
