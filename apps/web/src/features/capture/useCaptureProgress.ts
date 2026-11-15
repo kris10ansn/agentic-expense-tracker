@@ -1,7 +1,7 @@
 import type { CaptureEvent } from "@ai-expenses/api";
 import {
   type QueryClient,
-  type skipToken,
+  skipToken,
   useQueryClient,
 } from "@tanstack/react-query";
 import { type inferOutput, useSubscription } from "@trpc/tanstack-react-query";
@@ -57,7 +57,10 @@ export function useCaptureProgress(captureId: string | typeof skipToken) {
   const queryClient = useQueryClient();
   const { data } = useSubscription(
     trpc.captures.watch.subscriptionOptions(captureId, {
-      onData: (event) => applyCaptureEvent(queryClient, captureId, event),
+      onData: (event) => {
+        if (captureId === skipToken) return;
+        applyCaptureEvent(queryClient, captureId, event);
+      },
     }),
   );
 
