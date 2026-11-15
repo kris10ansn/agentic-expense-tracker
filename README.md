@@ -40,9 +40,9 @@ Capture controls remain visual only. Text grows from a single line, and you can 
 - `src/routes`: file-based routes, loaders, and URL validation. The Vite plugin generates `routeTree.gen.ts`; do not edit it by hand.
 - `src/pages`: page composition.
 - `src/features`: capture, expense, collection, and workspace components. Shared buttons, inputs, dialogs, and layout live in `src/components`.
-- `src/features/workspace`: layout and dialog state. `WorkspaceLayout` supplies empty arrays until data loading is connected.
+- `src/features/workspace`: layout, dialog state, mutations, and notifications. The shell and page headings render immediately while data sections load.
 
-TanStack Query and the tRPC options proxy are already configured. Add list queries in `WorkspaceLayout`, pass their results to `WorkspaceProvider`, and supply mutation callbacks to `WorkspaceDialogs`. Invalidate the affected queries after writes. Components receive ordinary data and callbacks, so they do not need to know how records are fetched.
+Data sections use TanStack Query and the tRPC options proxy to read expenses and collections from a shared cache. Lists and selectors show skeletons during initial loading and local retry messages on failure. Background refreshes preserve cached content and capture drafts. List components receive ordinary data and callbacks; workspace context owns dialog actions. Dialogs load their required data when opened, and mutations invalidate the affected queries after writes.
 
 The backend exposes AI extraction and saved expense and collection CRUD. The UI derives extraction fields and categories from the router type; record and create-input types in `src/lib/expenses.ts` are inferred from the CRUD endpoints. The UI uses collection titles, purchase timestamps, optional collections, and totals grouped by currency.
 

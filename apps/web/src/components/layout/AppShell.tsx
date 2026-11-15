@@ -2,7 +2,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { FolderOpen, House, List, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
-import type { Collection } from "../../lib/expenses";
+import { SidebarCollections } from "../../features/collections/SidebarCollections";
 
 const navigation = [
   { to: "/", label: "Home", icon: House },
@@ -41,13 +41,7 @@ function WorkspaceNavigation({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
-export function AppShell({
-  children,
-  collections,
-}: {
-  children: ReactNode;
-  collections: Collection[];
-}) {
+export function AppShell({ children }: { children: ReactNode }) {
   const isHome = useLocation({
     select: (location) => location.pathname === "/",
   });
@@ -66,20 +60,7 @@ export function AppShell({
         </div>
         <div className="mt-9 min-h-0 overflow-y-auto">
           <p className="mb-3 px-3 text-xs text-neutral-400">Collections</p>
-          {collections.map((collection) => (
-            <Link
-              key={collection.id}
-              to="/expenses"
-              search={{ collection: collection.id }}
-              className="flex min-h-10 items-center gap-3 rounded-lg px-3 text-left text-xs text-neutral-500 hover:bg-neutral-200/50"
-            >
-              <span
-                className="size-1.5 shrink-0 rounded-full"
-                style={{ background: collection.color }}
-              />
-              <span className="truncate">{collection.title}</span>
-            </Link>
-          ))}
+          <SidebarCollections />
         </div>
       </aside>
       <div className="min-h-dvh bg-white lg:ml-56 lg:min-h-[calc(100dvh-var(--spacing)*10)] lg:rounded-2xl lg:border lg:border-neutral-200">

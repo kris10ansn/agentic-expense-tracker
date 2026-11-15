@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Dialog, DialogActions } from "./Dialog";
 import { Button } from "./inputs";
 
@@ -9,6 +10,8 @@ export function ConfirmDialog({
   onClose,
   pending,
   error,
+  confirmDisabled = false,
+  children,
 }: {
   pending: boolean;
   error: string;
@@ -16,6 +19,8 @@ export function ConfirmDialog({
   description: string;
   onConfirm: () => void;
   onClose: () => void;
+  confirmDisabled?: boolean;
+  children?: ReactNode;
 }) {
   return (
     <Dialog
@@ -24,6 +29,7 @@ export function ConfirmDialog({
       onClose={onClose}
       pending={pending}
     >
+      {children}
       {error && (
         <p role="alert" className="mt-5 text-sm text-red-700">
           {error}
@@ -33,7 +39,11 @@ export function ConfirmDialog({
         <Button disabled={pending} variant="secondary" onClick={onClose}>
           Keep it
         </Button>
-        <Button disabled={pending} variant="danger" onClick={onConfirm}>
+        <Button
+          disabled={pending || confirmDisabled}
+          variant="danger"
+          onClick={onConfirm}
+        >
           <Trash2 className="size-4" />
           Delete permanently
         </Button>

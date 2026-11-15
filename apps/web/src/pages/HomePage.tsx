@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
+import { QueryError } from "../components/QueryError";
 import {
   CaptureDock,
   type CaptureDockData,
@@ -11,11 +12,12 @@ import {
 } from "../features/capture/mutations";
 import { PendingCapture } from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
+import { ExpenseListSkeleton } from "../features/expenses/ExpenseSkeletons";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
 import { trpc } from "../trpc";
 
 export function HomePage() {
-  const { expenses, collections, addExpense, openDialog } = useWorkspace();
+  const { addExpense } = useWorkspace();
 
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
 
@@ -66,28 +68,54 @@ export function HomePage() {
               files={filesRecord[capture.id] ?? []}
             />
           ))}
-          <ExpenseList
-            expenses={expenses}
-            collections={collections}
-            showDate
-            onSelectExpense={(expense) =>
-              openDialog({ kind: "expense", expense })
-            }
-          />
-          {expenses.length === 0 && (
-            <p className="py-5 text-sm text-neutral-500">
-              Your expenses will appear here.
-            </p>
-          )}
+          <RecentExpenses />
         </section>
         <div className="relative z-10 shrink-0 pt-5 lg:pt-0">
-          <CaptureDock
-            collections={collections}
-            onManualEntry={addExpense}
-            onSubmit={handleSubmit}
-          />
+          <CaptureDock onManualEntry={addExpense} onSubmit={handleSubmit} />
         </div>
       </div>
+    </>
+  );
+}
+
+function RecentExpenses() {
+  const { openDialog } = useWorkspace();
+  const expenses = useQuery(trpc.expenses.list.queryOptions());
+  const collections = useQuery(trpc.collections.list.queryOptions());
+  const error =
+    expenses.isError || collections.isError ? (
+      <QueryError
+        message={
+          expenses.data && collections.data
+            ? "Unable to refresh recent expenses. Showing previous data."
+            : "Unable to load recent expenses."
+        }
+        onRetry={() => {
+          void expenses.refetch();
+          void collections.refetch();
+        }}
+        retrying={expenses.isFetching || collections.isFetching}
+      />
+    ) : null;
+
+  if (!expenses.data || !collections.data) {
+    return error ?? <ExpenseListSkeleton />;
+  }
+
+  return (
+    <>
+      {error}
+      <ExpenseList
+        expenses={expenses.data}
+        collections={collections.data}
+        showDate
+        onSelectExpense={(expense) => openDialog({ kind: "expense", expense })}
+      />
+      {expenses.data.length === 0 && (
+        <p className="py-5 text-sm text-neutral-500">
+          Your expenses will appear here.
+        </p>
+      )}
     </>
   );
 }

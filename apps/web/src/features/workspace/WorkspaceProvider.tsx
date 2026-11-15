@@ -32,8 +32,7 @@ export type DialogState =
   | { kind: "delete-expense"; expense: Expense }
   | { kind: "delete-collection"; collection: Collection };
 
-type WorkspaceData = { expenses: Expense[]; collections: Collection[] };
-type WorkspaceContextValue = WorkspaceData & {
+type WorkspaceContextValue = {
   openDialog: (dialog: DialogState) => void;
   addExpense: (collectionId?: string) => void;
 };
@@ -45,14 +44,7 @@ export function useWorkspace() {
   return context;
 }
 
-// Only dialog state lives here. Resource data comes from WorkspaceLayout.
-export function WorkspaceProvider({
-  data,
-  children,
-}: {
-  data: WorkspaceData;
-  children: ReactNode;
-}) {
+export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const updateCollection = useUpdateCollection();
   const createCollection = useCreateCollection();
   const deleteCollection = useDeleteCollection();
@@ -147,12 +139,10 @@ export function WorkspaceProvider({
   }
 
   return (
-    <WorkspaceContext value={{ ...data, openDialog, addExpense }}>
+    <WorkspaceContext value={{ openDialog, addExpense }}>
       {children}
       <WorkspaceDialogs
         dialog={dialog}
-        collections={data.collections}
-        expenses={data.expenses}
         pending={pending}
         error={error}
         onChange={openDialog}

@@ -1,9 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { Check, Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Dialog, DialogActions } from "../../components/Dialog";
 import { Button, FormField, Select, TextInput } from "../../components/inputs";
+import { QueryError } from "../../components/QueryError";
 import {
-  type Collection,
   categories,
   currencies,
   type Expense,
@@ -11,11 +12,12 @@ import {
   isKnownCategory,
   toDateInput,
 } from "../../lib/expenses";
+import { trpc } from "../../trpc";
+import { ExpenseDialogSkeleton } from "./ExpenseSkeletons";
 import { parseExpenseForm } from "./expense-form";
 
 export function ExpenseDialog({
   expense,
-  collections,
   defaultCollectionId,
   defaultDate,
   onSave,
@@ -25,7 +27,6 @@ export function ExpenseDialog({
   error,
 }: {
   expense: Expense | null;
-  collections: Collection[];
   defaultCollectionId: string;
   defaultDate: string;
   onSave: (input: ExpenseInput) => void;
@@ -34,9 +35,40 @@ export function ExpenseDialog({
   pending: boolean;
   error: string;
 }) {
+  const collectionsQuery = useQuery(trpc.collections.list.queryOptions());
+  const collections = collectionsQuery.data;
   const [validationError, setValidationError] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const collectionError = collectionsQuery.isError ? (
+    <QueryError
+      message={
+        collections
+          ? "Unable to refresh collections. Showing previous data."
+          : "Unable to load collections for this expense."
+      }
+      onRetry={() => void collectionsQuery.refetch()}
+      retrying={collectionsQuery.isFetching}
+    />
+  ) : null;
+
+  const dialogProps = {
+    title: expense ? "Expense details" : "Add an expense",
+    description: expense
+      ? "View or update this expense."
+      : "Enter the details below.",
+    onClose,
+    pending,
+  };
+
+  if (!collections) {
+    return (
+      <Dialog {...dialogProps}>
+        {collectionError ?? <ExpenseDialogSkeleton />}
+      </Dialog>
+    );
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const input = parseExpenseForm({
       data: new FormData(event.currentTarget),
@@ -50,17 +82,11 @@ export function ExpenseDialog({
       return;
     }
     onSave(input);
-  }
+  };
 
   return (
-    <Dialog
-      title={expense ? "Expense details" : "Add an expense"}
-      description={
-        expense ? "View or update this expense." : "Enter the details below."
-      }
-      onClose={onClose}
-      pending={pending}
-    >
+    <Dialog {...dialogProps}>
+      {collectionError}
       <form className="mt-6" onSubmit={handleSubmit} aria-busy={pending}>
         <fieldset disabled={pending} className="flex min-w-0 flex-col gap-5">
           <FormField htmlFor="expense-title" label="Expense name">

@@ -1,4 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { QueryError } from "../../components/QueryError";
+import { Skeleton, SkeletonRegion } from "../../components/Skeleton";
 import type {
   Collection,
   CollectionInput,
@@ -6,14 +10,13 @@ import type {
   ExpenseInput,
 } from "../../lib/expenses";
 import { toDateInput } from "../../lib/expenses";
+import { trpc } from "../../trpc";
 import { CollectionDialog } from "../collections/CollectionDialog";
 import { ExpenseDialog } from "../expenses/ExpenseDialog";
 import type { DialogState } from "./WorkspaceProvider";
 
 export function WorkspaceDialogs({
   dialog,
-  collections,
-  expenses,
   pending,
   error,
   onChange,
@@ -23,8 +26,6 @@ export function WorkspaceDialogs({
   onDeleteCollection,
 }: {
   dialog: DialogState;
-  collections: Collection[];
-  expenses: Expense[];
   pending: boolean;
   error: string;
   onChange: (dialog: DialogState) => void;
@@ -46,7 +47,6 @@ export function WorkspaceDialogs({
         <ExpenseDialog
           {...shared}
           expense={dialog.expense}
-          collections={collections}
           defaultCollectionId={dialog.collectionId ?? ""}
           defaultDate={toDateInput(new Date())}
           onSave={onSaveExpense}
@@ -73,16 +73,60 @@ export function WorkspaceDialogs({
       );
     case "delete-collection":
       return (
-        <ConfirmDialog
+        <DeleteCollectionDialog
           {...shared}
-          title={`Delete ${dialog.collection.title}?`}
-          description={
-            expenses.some((item) => item.collectionId === dialog.collection.id)
-              ? "Move or remove this collection's expenses before deleting it."
-              : "This will permanently delete the collection. This can't be undone."
-          }
+          collection={dialog.collection}
           onConfirm={() => onDeleteCollection(dialog.collection)}
         />
       );
   }
+}
+
+function DeleteCollectionDialog({
+  collection,
+  ...props
+}: Pick<
+  ComponentProps<typeof ConfirmDialog>,
+  "onClose" | "onConfirm" | "pending" | "error"
+> & { collection: Collection }) {
+  const expenses = useQuery(trpc.expenses.list.queryOptions());
+  let description = "Review this collection before deleting it.";
+  if (expenses.data) {
+    description =
+      "This will permanently delete the collection. This can't be undone.";
+    if (expenses.data.some((item) => item.collectionId === collection.id)) {
+      description =
+        "Move or remove this collection's expenses before deleting it.";
+    }
+  }
+
+  return (
+    <ConfirmDialog
+      {...props}
+      title={`Delete ${collection.title}?`}
+      description={description}
+      confirmDisabled={!expenses.data}
+    >
+      {expenses.isError && (
+        <QueryError
+          message={
+            expenses.data
+              ? "Unable to refresh expenses. Showing previous data."
+              : "Unable to load this collection's expenses."
+          }
+          onRetry={() => void expenses.refetch()}
+          retrying={expenses.isFetching}
+        />
+      )}
+      {!expenses.data && !expenses.isError && (
+        <SkeletonRegion
+          label="Loading collection expenses"
+          className="mt-5 space-y-2"
+        >
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </SkeletonRegion>
+      )}
+    </ConfirmDialog>
+  );
 }

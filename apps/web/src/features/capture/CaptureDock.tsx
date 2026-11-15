@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUp,
   Camera,
@@ -16,8 +17,11 @@ import {
   IconButton,
   TextArea,
 } from "../../components/inputs";
+import { QueryError } from "../../components/QueryError";
 import { createTranscript, useSpeech } from "../../hooks/useSpeech";
 import type { Collection } from "../../lib/expenses";
+import { trpc } from "../../trpc";
+import { CollectionSelectSkeleton } from "../collections/CollectionSkeletons";
 import { RecordingButton } from "./RecordingButton";
 
 export type CaptureDockData = {
@@ -27,26 +31,39 @@ export type CaptureDockData = {
 };
 
 type CaptureDockProps = {
-  collections: Collection[];
   onManualEntry: (collectionId?: string) => void;
   onSubmit: (input: CaptureDockData) => void;
   className?: string;
 };
 
 export function CaptureDock({
-  collections,
   className,
   onSubmit,
   onManualEntry,
 }: CaptureDockProps) {
+  const collectionsQuery = useQuery(trpc.collections.list.queryOptions());
+  const collections = collectionsQuery.data;
+
   const [collectionId, setCollectionId] = useState("");
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState([] as File[]);
 
   const selectedCollection =
-    collections.find((item) => item.id === collectionId)?.id ??
-    collections[0]?.id ??
+    collections?.find((item) => item.id === collectionId)?.id ??
+    collections?.[0]?.id ??
     "";
+
+  const collectionError = collectionsQuery.isError ? (
+    <QueryError
+      message={
+        collections
+          ? "Unable to refresh collections. Showing previous data."
+          : "Unable to load collections."
+      }
+      onRetry={() => void collectionsQuery.refetch()}
+      retrying={collectionsQuery.isFetching}
+    />
+  ) : null;
 
   const handleSpeechResults = useCallback(
     (results: SpeechRecognitionResultList) => {
@@ -92,11 +109,17 @@ export function CaptureDock({
       )}
     >
       <div className="my-3 flex flex-wrap items-center justify-between gap-x-2">
-        <CollectionSelector
-          selectedCollection={selectedCollection}
-          collections={collections}
-          onChange={setCollectionId}
-        />
+        {collections ? (
+          <CollectionSelector
+            selectedCollection={selectedCollection}
+            collections={collections}
+            onChange={setCollectionId}
+          />
+        ) : (
+          (collectionError ?? (
+            <CollectionSelectSkeleton label="Loading capture collections" />
+          ))
+        )}
 
         <Button
           aria-label="Add expense manually"
@@ -108,6 +131,8 @@ export function CaptureDock({
         </Button>
       </div>
 
+      {collections && collectionError}
+
       <div className="mb-2 flex flex-row flex-wrap gap-2">
         {files.map((file, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: Index will not change
@@ -116,9 +141,7 @@ export function CaptureDock({
       </div>
 
       <DescriptionComposer
-        disabled={
-          files.length === 0 && !(collections.length > 0 && description)
-        }
+        disabled={!selectedCollection || (files.length === 0 && !description)}
         value={description}
         onChange={setDescription}
         onSubmit={submit}
