@@ -23,6 +23,8 @@ export function applyCaptureEvent(
   captureId: string,
   event: CaptureEvent,
 ) {
+  if (event.capture.status !== "complete") return;
+
   if ("createdExpenses" in event) {
     const expensesKey = trpc.expenses.list.queryKey();
 
