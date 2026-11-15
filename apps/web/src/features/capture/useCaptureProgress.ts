@@ -37,12 +37,13 @@ export function applyCaptureEvent(
 
       const existingIds = new Set(expenses.map((expense) => expense.id));
       return [
-        ...expenses,
         ...event.createdExpenses.filter(
           (expense) => !existingIds.has(expense.id),
         ),
-      ];
+        ...expenses,
+      ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     });
+
     void queryClient.invalidateQueries({ queryKey: expensesKey });
   }
 
