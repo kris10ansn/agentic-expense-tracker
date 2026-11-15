@@ -14,7 +14,10 @@
         }
       },
       "nursery": {
-        "useTailwindSortedClasses": "error"
+        "useTailwindSortedClasses": {
+          "level": "warn",
+          "fix": "safe"
+        }
       }
     }
   },
