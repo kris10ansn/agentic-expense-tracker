@@ -77,7 +77,7 @@ function CaptureFilePreview({ file }: { file: File }) {
         ref={imageRef}
         key={file.name}
         alt={file.name}
-        className="size-14 shrink-0 rounded-lg border border-neutral-200 object-cover object-top"
+        className="size-14 min-h-14 min-w-14 shrink-0 rounded-lg border border-neutral-200 object-cover object-top"
       />
       <div className="min-w-0">
         <p title={file.name} className="truncate text-sm text-neutral-800">

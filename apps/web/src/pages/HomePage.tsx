@@ -1,82 +1,44 @@
-import {
-  type Mutation,
-  useMutation,
-  useMutationState,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import type { ExpenseFormData } from "../../../api/src/expenses/input";
 import { PageHeader } from "../components/PageHeader";
 import {
   CaptureDock,
   type CaptureDockData,
 } from "../features/capture/CaptureDock";
+import {
+  useSendingCaptures,
+  useStartCapture,
+} from "../features/capture/mutations";
 import { PendingCapture } from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
-import { client, trpc } from "../trpc";
+import type { Expense } from "../lib/expenses";
+import { trpc } from "../trpc";
 
-function createFormData(input: ExpenseFormData): FormData {
-  const form = new FormData();
-
-  for (const [key, value] of Object.entries(input)) {
-    if (Array.isArray(value)) {
-      for (const file of value) form.append(key, file);
-    } else {
-      form.set(key, value);
-    }
-  }
-
-  return form;
-}
+const byTime = (a: Expense, b: Expense) =>
+  b.createdAt.getTime() - a.createdAt.getTime();
 
 export function HomePage() {
-  const queryClient = useQueryClient();
-  const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
+  const { expenses, collections, addExpense, openDialog } = useWorkspace();
 
-  const startCapture = useMutation({
-    mutationKey: trpc.captures.start.mutationKey(),
-    mutationFn: (input: ExpenseFormData) => {
-      const formData = createFormData(input);
-      return client.captures.start.mutate(formData);
-    },
-    onSuccess: (capture) => {
-      const activeCapturesKey = trpc.captures.listActive.queryKey();
-
-      queryClient.setQueryData(activeCapturesKey, (captures) =>
-        captures !== undefined ? [...captures, capture] : undefined,
-      );
-
-      queryClient.invalidateQueries({ queryKey: activeCapturesKey });
-    },
-  });
-
-  const sendingCaptures = useMutationState({
-    filters: {
-      mutationKey: trpc.captures.start.mutationKey(),
-      status: "pending",
-    },
-    select: (mutation: Mutation<unknown, Error, ExpenseFormData>) =>
-      mutation.state.variables,
-  });
-
-  const captures = [
-    ...(pendingCaptures.data ?? []).map((capture) => ({
-      ...capture,
-      captureId: capture.id,
-    })),
-    ...sendingCaptures
-      .filter((capture) => capture !== undefined)
-      .map((capture) => ({ ...capture, captureId: null })),
-  ];
-
+  const recentExpenses = [...expenses].sort(byTime);
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
 
-  const { expenses, collections, addExpense, openDialog } = useWorkspace();
-  const recentExpenses = [...expenses].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-  );
+  const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
+  const sendingCaptures = useSendingCaptures();
+
+  const startCapture = useStartCapture();
+
+  const pending = pendingCaptures.data ?? [];
+  const pendingIds = new Set(pending.map((capture) => capture.id));
+
+  const captures = [
+    ...pending.map((c) => ({ ...c, captureId: c.id })),
+    ...sendingCaptures
+      .filter((capture) => capture !== undefined)
+      .filter((capture) => !pendingIds.has(capture.id))
+      .map((capture) => ({ ...capture, captureId: null })),
+  ];
 
   const handleSubmit = useCallback(
     async ({ description, files, collectionId }: CaptureDockData) => {
