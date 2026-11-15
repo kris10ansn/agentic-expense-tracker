@@ -1,44 +1,83 @@
 import { EventEmitter, on } from "node:events";
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import z from "zod";
 import type { Database } from "../db";
 import {
   type Capture,
+  captureSchema,
   capturesTable,
+  captureUpdateSchema,
   expenseSchema,
   expensesTable,
 } from "../db/schema";
 import { extractExpenses } from "../expenses/extract";
 import { expenseFormSchema } from "../expenses/input";
-import { modelFailuresSchema } from "../expenses/schema";
 import { publicProcedure, t } from "../trpc";
 
-const captureEvents = new EventEmitter();
+const captureEventSchema = z.union([
+  z.object({
+    capture: captureUpdateSchema.safeExtend({
+      status: captureSchema.shape.status.extract(["extracting", "saving"]),
+    }),
+  }),
+  z.object({
+    capture: captureUpdateSchema.safeExtend({
+      status: captureSchema.shape.status.extract(["complete"]),
+      failures: captureSchema.shape.failures.nonoptional(),
+    }),
+    createdExpenses: z.array(expenseSchema),
+  }),
+  z.object({
+    capture: captureUpdateSchema.safeExtend({
+      status: captureSchema.shape.status.extract(["failed"]),
+    }),
+    errorMessage: z.string(),
+  }),
+]);
+
+type CaptureEvent = z.infer<typeof captureEventSchema>;
+
+const rawCaptureEvents = new EventEmitter<{
+  update: [captureId: string, event: CaptureEvent];
+}>();
+
+export const captureEvents = {
+  emit(captureId: string, event: CaptureEvent): boolean {
+    return rawCaptureEvents.emit(captureId, event);
+  },
+
+  events(
+    captureId: string,
+    options: { signal?: AbortSignal | undefined } = {},
+  ) {
+    return on(rawCaptureEvents, captureId, options) as AsyncIterableIterator<
+      [event: CaptureEvent]
+    >;
+  },
+};
 
 async function publishCaptureUpdate(
   captureId: string,
-  update: CaptureUpdate,
+  update: CaptureEvent,
   db: Database,
 ) {
-  const active = !(update.status === "complete" || update.status === "failed");
-
   await db
     .update(capturesTable)
-    .set({ status: update.status, active })
+    .set(update.capture)
     .where(eq(capturesTable.id, captureId));
 
-  captureEvents.emit(captureId);
+  captureEvents.emit(captureId, update);
 }
 
-async function processCapture(
+async function startCapture(
   captureId: string,
   input: z.infer<typeof expenseFormSchema>,
   db: Database,
 ) {
   try {
     const extract = await extractExpenses(input);
-    publishCaptureUpdate(captureId, { status: "saving" }, db);
+    publishCaptureUpdate(captureId, { capture: { status: "saving" } }, db);
 
     const inserts = extract.expenses.map((e) => ({
       ...e,
@@ -54,15 +93,27 @@ async function processCapture(
     publishCaptureUpdate(
       captureId,
       {
-        status: "complete",
+        capture: {
+          status: "complete",
+          failures: extract.failures,
+        },
         createdExpenses,
-        failures: extract.failures,
       },
       db,
     );
   } catch (e: unknown) {
-    const error = e instanceof Error ? e.message : "Extraction failed";
-    publishCaptureUpdate(captureId, { status: "failed", error }, db);
+    const errorMessage = e instanceof Error ? e.message : "Extraction failed";
+
+    publishCaptureUpdate(
+      captureId,
+      {
+        capture: {
+          status: "failed",
+        },
+        errorMessage,
+      },
+      db,
+    );
   }
 }
 
@@ -83,36 +134,12 @@ async function getCapture(id: Capture["id"], db: Database): Promise<Capture> {
   return capture;
 }
 
-export const captureUpdateStatus = z.enum([
-  "extracting",
-  "saving",
-  "complete",
-  "failed",
-]);
-
-export type CaptureUpdateStatus = z.infer<typeof captureUpdateStatus>;
-
-const captureUpdateSchema = z.discriminatedUnion("status", [
-  z.object({ status: captureUpdateStatus.extract(["extracting", "saving"]) }),
-  z.object({
-    status: captureUpdateStatus.extract(["complete"]),
-    createdExpenses: z.array(expenseSchema),
-    failures: modelFailuresSchema,
-  }),
-  z.object({
-    status: captureUpdateStatus.extract(["failed"]),
-    error: z.string(),
-  }),
-]);
-
-type CaptureUpdate = z.infer<typeof captureUpdateSchema>;
-
 export const capturesRouter = t.router({
   listActive: publicProcedure.query(async ({ ctx }) => {
     return ctx.db
       .select()
       .from(capturesTable)
-      .where(eq(capturesTable.active, true));
+      .where(inArray(capturesTable.status, ["extracting", "saving"]));
   }),
 
   start: publicProcedure
@@ -121,7 +148,6 @@ export const capturesRouter = t.router({
       const [capture] = await ctx.db
         .insert(capturesTable)
         .values({
-          active: true,
           status: "extracting",
           description: input.description,
           fileNames: input.files.map((file) => file.name),
@@ -135,8 +161,12 @@ export const capturesRouter = t.router({
         });
       }
 
-      publishCaptureUpdate(capture.id, { status: "extracting" }, ctx.db);
-      void processCapture(capture.id, input, ctx.db);
+      publishCaptureUpdate(
+        capture.id,
+        { capture: { status: "extracting" } },
+        ctx.db,
+      );
+      void startCapture(capture.id, input, ctx.db);
 
       return capture;
     }),
@@ -145,25 +175,29 @@ export const capturesRouter = t.router({
     input: captureId,
     signal,
     ctx,
-  }) {
-    const changes = on(captureEvents, captureId, { signal });
+  }): AsyncGenerator<CaptureEvent, void, unknown> {
+    const events = captureEvents.events(captureId, { signal });
 
-    const isComplete = (update: Capture) =>
-      update.status === "complete" || update.status === "failed";
+    const isDone = (status: Capture["status"]) =>
+      status === "complete" || status === "failed";
 
     try {
-      const initialUpdate = await getCapture(captureId, ctx.db);
-      yield initialUpdate;
-      if (isComplete(initialUpdate)) return;
+      const initialCapture = await getCapture(captureId, ctx.db);
+      yield {
+        capture: initialCapture,
+        errorMessage: "Extraction failed",
+        createdExpenses: [],
+      } as CaptureEvent;
 
-      for await (const _ of changes) {
-        const update = await getCapture(captureId, ctx.db);
-        yield update;
+      if (isDone(initialCapture.status)) return;
 
-        if (isComplete(update)) return;
+      for await (const [event] of events) {
+        yield event;
+
+        if (isDone(event.capture.status)) return;
       }
     } finally {
-      await changes.return?.();
+      await events.return?.();
     }
   }),
 });

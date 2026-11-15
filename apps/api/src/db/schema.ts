@@ -1,6 +1,5 @@
 import {
   type AnyPgColumn,
-  boolean,
   integer,
   jsonb,
   pgEnum,
@@ -10,7 +9,11 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import {
+  createInsertSchema,
+  createSelectSchema,
+  createUpdateSchema,
+} from "drizzle-zod";
 import { z } from "zod";
 import type { modelFailuresSchema } from "../expenses/schema";
 
@@ -82,15 +85,19 @@ export const captureStatus = pgEnum("capture_status", [
   "complete",
   "failed",
 ]);
+export const captureStatusSchema = createSelectSchema(captureStatus);
+export type CaptureStatus = z.infer<typeof captureStatusSchema>;
 
 export const capturesTable = pgTable("captures", {
   id: uuid().primaryKey().defaultRandom().notNull(),
   status: captureStatus().notNull(),
-  active: boolean().notNull(),
   description: text().notNull(),
   fileNames: text().array().notNull(),
   failures: jsonb().$type<z.infer<typeof modelFailuresSchema>>(),
 });
 
 export const captureSchema = createSelectSchema(capturesTable);
+export const captureUpdateSchema = createUpdateSchema(capturesTable);
+
 export type Capture = z.infer<typeof captureSchema>;
+export type CaptureUpdate = z.infer<typeof captureUpdateSchema>;

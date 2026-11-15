@@ -23,11 +23,25 @@ export function PendingExpense({
       onData: (data) => {
         if (data === undefined) return;
 
-        if (data.status === "complete") {
+        if (data.capture.status === "complete") {
           const expensesKey = trpc.expenses.list.queryKey();
+
+          if ("createdExpenses" in data) {
+            queryClient.setQueryData(expensesKey, (expenses) =>
+              expenses !== undefined
+                ? [...expenses, ...data.createdExpenses]
+                : [],
+            );
+          }
+
           queryClient.invalidateQueries({ queryKey: expensesKey });
 
           const activeCapturesKey = trpc.captures.listActive.queryKey();
+
+          queryClient.setQueryData(activeCapturesKey, (captures) =>
+            captures?.filter((c) => c.id !== capture.id),
+          );
+
           queryClient.invalidateQueries({ queryKey: activeCapturesKey });
         }
       },
@@ -35,12 +49,14 @@ export function PendingExpense({
   );
 
   const message = useMemo(() => {
-    const status = subscription.data?.status;
+    const data = subscription.data ?? { capture: { status: undefined } };
+    const status = data?.capture.status;
 
     if (status === undefined) return "Sending data...";
     if (status === "extracting") return "Running AI analysis...";
     if (status === "saving") return "Saving new expenses...";
     if (status === "complete") return "Complete!";
+    if (status === "failed" && "errorMessage" in data) return data.errorMessage;
     if (status === "failed") return "Failed generating expenses";
 
     throw new Error(`Illegal status message [${status}]`);
