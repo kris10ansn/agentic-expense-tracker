@@ -24,11 +24,8 @@ export function Dialog({
   useLayoutEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       dialog?.close();
-      document.body.style.overflow = previousOverflow;
     };
   }, []);
 
@@ -36,7 +33,7 @@ export function Dialog({
     <dialog
       ref={ref}
       className={twMerge(
-        "font-inter fixed inset-x-0 top-auto bottom-0 m-0 max-h-dvh w-full max-w-none overflow-y-auto overscroll-contain rounded-t-3xl border border-slate-200 bg-white px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-slate-900 shadow-xl backdrop:bg-slate-900/30 backdrop:backdrop-blur-sm sm:inset-0 sm:m-auto sm:max-w-lg sm:rounded-2xl sm:p-8",
+        "font-inter fixed inset-x-0 top-auto bottom-0 m-0 max-h-dvh w-full max-w-none overflow-y-auto overscroll-contain rounded-t-3xl border border-slate-200 bg-white px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-slate-900 shadow-xl backdrop:overflow-hidden backdrop:overscroll-contain backdrop:bg-slate-900/30 backdrop:backdrop-blur-sm sm:inset-0 sm:m-auto sm:max-w-lg sm:rounded-2xl sm:p-8",
         className,
       )}
       aria-labelledby={titleId}
