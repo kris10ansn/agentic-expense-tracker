@@ -5,7 +5,7 @@ import {
   CaptureDock,
   type CaptureDockData,
 } from "../features/capture/CaptureDock";
-import { PendingExpense } from "../features/capture/PendingExpense";
+import { PendingCapture } from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
 import { trpc } from "../trpc";
@@ -69,7 +69,7 @@ export function HomePage() {
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
           {pendingCaptures.data?.map((capture) => (
-            <PendingExpense
+            <PendingCapture
               key={capture.id}
               capture={capture}
               files={filesRecord[capture.id] ?? []}

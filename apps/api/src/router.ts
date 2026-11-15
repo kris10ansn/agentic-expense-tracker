@@ -5,6 +5,8 @@ import { collectionsRouter } from "./collections/router";
 import { expensesRouter } from "./expenses/router";
 import { publicProcedure, t } from "./trpc";
 
+export type { CaptureEvent } from "./captures/events";
+
 export const appRouter = t.router({
   status: publicProcedure.query(async ({ ctx }) => {
     try {
