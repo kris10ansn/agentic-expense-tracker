@@ -8,3 +8,5 @@ TypeScript monorepo for expense tracking and AI extraction from text and images.
 For setup, commands, and verification, see [README.md](README.md).
 
 Branch naming: [BRANCHES.md](docs/BRANCHES.md)
+
+Code style: [CODE_STYLE.md](docs/CODE_STYLE.md)
