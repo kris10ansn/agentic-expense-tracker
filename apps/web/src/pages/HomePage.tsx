@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import type { ExpenseFormData } from "../../../api/src/expenses/input";
 import { PageHeader } from "../components/PageHeader";
 import {
   CaptureDock,
@@ -8,39 +9,42 @@ import {
 import { PendingCapture } from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
-import { trpc } from "../trpc";
+import { client, trpc } from "../trpc";
 
-const createFormData = (capture: Omit<CaptureDockData, "id">) => {
-  const formData = new FormData();
+function createFormData(input: ExpenseFormData): FormData {
+  const form = new FormData();
 
-  formData.set("description", capture.description);
-  formData.set("collectionId", capture.collectionId);
-
-  for (const file of capture.files) {
-    formData.append("files", file);
+  for (const [key, value] of Object.entries(input)) {
+    if (Array.isArray(value)) {
+      for (const file of value) form.append(key, file);
+    } else {
+      form.set(key, value);
+    }
   }
 
-  return formData;
-};
+  return form;
+}
 
 export function HomePage() {
   const queryClient = useQueryClient();
-
   const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
 
-  const startCapture = useMutation(
-    trpc.captures.start.mutationOptions({
-      onSuccess: (capture) => {
-        const activeCapturesKey = trpc.captures.listActive.queryKey();
+  const startCapture = useMutation({
+    mutationKey: trpc.captures.start.mutationKey(),
+    mutationFn: (input: ExpenseFormData) => {
+      const formData = createFormData(input);
+      return client.captures.start.mutate(formData);
+    },
+    onSuccess: (capture) => {
+      const activeCapturesKey = trpc.captures.listActive.queryKey();
 
-        queryClient.setQueryData(activeCapturesKey, (captures) =>
-          captures !== undefined ? [...captures, capture] : undefined,
-        );
+      queryClient.setQueryData(activeCapturesKey, (captures) =>
+        captures !== undefined ? [...captures, capture] : undefined,
+      );
 
-        queryClient.invalidateQueries({ queryKey: activeCapturesKey });
-      },
-    }),
-  );
+      queryClient.invalidateQueries({ queryKey: activeCapturesKey });
+    },
+  });
 
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
 
@@ -51,9 +55,11 @@ export function HomePage() {
 
   const handleSubmit = useCallback(
     async ({ description, files, collectionId }: CaptureDockData) => {
-      const data = { description, files, collectionId };
-      const formData = createFormData(data);
-      const capture = await startCapture.mutateAsync(formData);
+      const capture = await startCapture.mutateAsync({
+        description,
+        files,
+        collectionId,
+      });
 
       setFilesRecord({ ...filesRecord, [capture.id]: files });
     },

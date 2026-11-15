@@ -15,7 +15,7 @@ import superjson from "superjson";
 
 import { queryClient } from "./lib/query-client";
 
-const client = createTRPCClient<AppRouter>({
+export const client = createTRPCClient<AppRouter>({
   links: [
     splitLink({
       condition: (operation) => operation.type === "subscription",

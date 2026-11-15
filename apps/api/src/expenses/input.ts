@@ -28,4 +28,5 @@ export const expenseFormSchema = z
   }))
   .pipe(expenseInputSchema);
 
+export type ExpenseFormData = z.infer<typeof expenseFormSchema>;
 export type ExpenseInput = z.infer<typeof expenseInputSchema>;
