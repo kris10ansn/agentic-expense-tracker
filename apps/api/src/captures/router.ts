@@ -43,6 +43,7 @@ export const capturesRouter = t.router({
       const [capture] = await ctx.db
         .insert(capturesTable)
         .values({
+          id: input.id,
           status: "extracting",
           description: input.description,
           fileNames: input.files.map((file) => file.name),

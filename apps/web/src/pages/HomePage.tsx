@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type Mutation,
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import type { ExpenseFormData } from "../../../api/src/expenses/input";
 import { PageHeader } from "../components/PageHeader";
@@ -46,6 +52,25 @@ export function HomePage() {
     },
   });
 
+  const sendingCaptures = useMutationState({
+    filters: {
+      mutationKey: trpc.captures.start.mutationKey(),
+      status: "pending",
+    },
+    select: (mutation: Mutation<unknown, Error, ExpenseFormData>) =>
+      mutation.state.variables,
+  });
+
+  const captures = [
+    ...(pendingCaptures.data ?? []).map((capture) => ({
+      ...capture,
+      captureId: capture.id,
+    })),
+    ...sendingCaptures
+      .filter((capture) => capture !== undefined)
+      .map((capture) => ({ ...capture, captureId: null })),
+  ];
+
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
 
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
@@ -55,15 +80,17 @@ export function HomePage() {
 
   const handleSubmit = useCallback(
     async ({ description, files, collectionId }: CaptureDockData) => {
-      const capture = await startCapture.mutateAsync({
+      const capture = {
+        id: crypto.randomUUID(),
         description,
         files,
         collectionId,
-      });
+      };
 
       setFilesRecord({ ...filesRecord, [capture.id]: files });
+      void startCapture.mutate(capture);
     },
-    [startCapture.mutateAsync, filesRecord],
+    [filesRecord, startCapture.mutate],
   );
 
   return (
@@ -74,10 +101,11 @@ export function HomePage() {
           aria-label="Recent expenses"
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
-          {pendingCaptures.data?.map((capture) => (
+          {captures.map((capture) => (
             <PendingCapture
               key={capture.id}
-              capture={capture}
+              captureId={capture.captureId}
+              description={capture.description}
               files={filesRecord[capture.id] ?? []}
             />
           ))}

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const expenseInputSchema = z
   .object({
+    id: z.uuid(),
     collectionId: z.uuid(),
     description: z.string().trim(),
     files: z
@@ -22,6 +23,7 @@ const expenseInputSchema = z
 export const expenseFormSchema = z
   .instanceof(FormData)
   .transform((form) => ({
+    id: form.get("id"),
     description: form.get("description") ?? "",
     files: form.getAll("files"),
     collectionId: form.get("collectionId"),

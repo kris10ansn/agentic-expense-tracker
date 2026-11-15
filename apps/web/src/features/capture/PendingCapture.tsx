@@ -1,20 +1,23 @@
+import { skipToken } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 import { useCallback } from "react";
 import { twMerge } from "tailwind-merge";
-import { type Capture, useCaptureProgress } from "./useCaptureProgress";
+import { useCaptureProgress } from "./useCaptureProgress";
 
 type PendingCaptureProps = {
-  capture: Capture;
+  captureId: string | null;
+  description: string;
   files: File[];
   className?: string;
 };
 
 export function PendingCapture({
-  capture,
+  captureId,
+  description,
   files,
   className,
 }: PendingCaptureProps) {
-  const message = useCaptureProgress(capture.id);
+  const message = useCaptureProgress(captureId ?? skipToken);
 
   return (
     <div
@@ -35,9 +38,9 @@ export function PendingCapture({
             strokeWidth={1.75}
           />
         </div>
-        {capture.description && (
+        {description && (
           <p className="text-base text-pretty text-neutral-900">
-            {capture.description}
+            {description}
           </p>
         )}
         {files.length > 0 && (
@@ -72,6 +75,7 @@ function CaptureFilePreview({ file }: { file: File }) {
     <li className="flex min-w-0 items-center gap-3">
       <img
         ref={imageRef}
+        key={file.name}
         alt={file.name}
         className="size-14 shrink-0 rounded-lg border border-neutral-200 object-cover object-top"
       />

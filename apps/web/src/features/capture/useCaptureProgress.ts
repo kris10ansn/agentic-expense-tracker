@@ -1,5 +1,9 @@
 import type { CaptureEvent } from "@ai-expenses/api";
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  type skipToken,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { type inferOutput, useSubscription } from "@trpc/tanstack-react-query";
 import { type TRPC, trpc } from "../../trpc";
 
@@ -49,7 +53,7 @@ export function applyCaptureEvent(
   void queryClient.invalidateQueries({ queryKey: activeCapturesKey });
 }
 
-export function useCaptureProgress(captureId: string) {
+export function useCaptureProgress(captureId: string | typeof skipToken) {
   const queryClient = useQueryClient();
   const { data } = useSubscription(
     trpc.captures.watch.subscriptionOptions(captureId, {
