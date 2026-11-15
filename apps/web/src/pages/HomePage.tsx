@@ -12,16 +12,11 @@ import {
 import { PendingCapture } from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
-import type { Expense } from "../lib/expenses";
 import { trpc } from "../trpc";
-
-const byTime = (a: Expense, b: Expense) =>
-  b.createdAt.getTime() - a.createdAt.getTime();
 
 export function HomePage() {
   const { expenses, collections, addExpense, openDialog } = useWorkspace();
 
-  const recentExpenses = [...expenses].sort(byTime);
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
 
   const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
@@ -72,14 +67,14 @@ export function HomePage() {
             />
           ))}
           <ExpenseList
-            expenses={recentExpenses}
+            expenses={expenses}
             collections={collections}
             showDate
             onSelectExpense={(expense) =>
               openDialog({ kind: "expense", expense })
             }
           />
-          {recentExpenses.length === 0 && (
+          {expenses.length === 0 && (
             <p className="py-5 text-sm text-neutral-500">
               Your expenses will appear here.
             </p>
