@@ -7,6 +7,12 @@
   },
   "linter": {
     "rules": {
+      "correctness": {
+        "useExhaustiveDependencies": {
+          "level": "warn",
+          "fix": "safe"
+        }
+      },
       "nursery": {
         "useTailwindSortedClasses": "error"
       }
