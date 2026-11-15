@@ -5,3 +5,6 @@
 - Avoid inline function props unless very simple
 - Avoid excessive nesting of if statements and similar
 - Avoid switch statements
+- Avoid code blocks without curly braces
+
+- Have space between logic
