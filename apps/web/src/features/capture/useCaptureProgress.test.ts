@@ -56,17 +56,53 @@ test("completion merges expenses once, removes only its capture, and refreshes b
   const expensesKey = trpc.expenses.list.queryKey();
   const capturesKey = trpc.captures.listActive.queryKey();
   const otherCapture = { ...capture, id: "capture-2" };
-  const existingExpense = { ...expense, id: "expense-2" };
+  const existingExpense = {
+    ...expense,
+    id: "expense-2",
+    createdAt: new Date("2026-11-14T12:00:00Z"),
+  };
   client.setQueryData(expensesKey, [existingExpense]);
   client.setQueryData(capturesKey, [capture, otherCapture]);
 
   applyCaptureEvent(client, capture.id, complete);
   applyCaptureEvent(client, capture.id, complete);
 
-  expect(client.getQueryData(expensesKey)).toEqual([existingExpense, expense]);
+  expect(client.getQueryData(expensesKey)).toEqual([expense, existingExpense]);
   expect(client.getQueryData(capturesKey)).toEqual([otherCapture]);
   expect(client.getQueryState(expensesKey)?.isInvalidated).toBe(true);
   expect(client.getQueryState(capturesKey)?.isInvalidated).toBe(true);
+  client.clear();
+});
+
+test("completion sorts all expenses by creation time, including delayed results", () => {
+  const client = new QueryClient();
+  const key = trpc.expenses.list.queryKey();
+  const newest = {
+    ...expense,
+    id: "newest",
+    createdAt: new Date("2026-11-17T12:00:00Z"),
+    purchasedAt: new Date("2026-11-01T12:00:00Z"),
+  };
+  const middle = {
+    ...expense,
+    id: "middle",
+    createdAt: new Date("2026-11-16T12:00:00Z"),
+  };
+  const oldest = {
+    ...expense,
+    id: "oldest",
+    createdAt: new Date("2026-11-14T12:00:00Z"),
+    purchasedAt: new Date("2026-11-18T12:00:00Z"),
+  };
+  const existingExpenses = [middle, expense];
+  const createdExpenses = [oldest, middle, newest];
+  client.setQueryData(key, existingExpenses);
+
+  applyCaptureEvent(client, capture.id, { ...complete, createdExpenses });
+
+  expect(client.getQueryData(key)).toEqual([newest, middle, expense, oldest]);
+  expect(existingExpenses).toEqual([middle, expense]);
+  expect(createdExpenses).toEqual([oldest, middle, newest]);
   client.clear();
 });
 

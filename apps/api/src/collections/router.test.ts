@@ -2,11 +2,7 @@ import { afterAll, afterEach, expect, mock, spyOn, test } from "bun:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
 import { createDatabase } from "../db";
-import {
-  collectionColors,
-  collectionCreateSchema,
-  expenseCollectionTable,
-} from "../db/schema";
+import { collectionCreateSchema, expenseCollectionTable } from "../db/schema";
 import { appRouter } from "../router";
 
 const db = createDatabase("postgresql://test:test@localhost:1/expenses");
@@ -80,11 +76,14 @@ test.each(["get", "update", "delete"] as const)(
   },
 );
 
-test.each(collectionColors)("accepts the $label palette color", ({ value }) => {
-  expect(
-    collectionCreateSchema.parse({ title: "  Groceries  ", color: value }),
-  ).toEqual({ title: "Groceries", color: value });
-});
+test.each(["#458a72", "#ABCDEF", "#aBcDeF", "#000000", "#ffffff"])(
+  "accepts the hex color %s",
+  (color) => {
+    expect(
+      collectionCreateSchema.parse({ title: "  Groceries  ", color }),
+    ).toEqual({ title: "Groceries", color });
+  },
+);
 
 test("keeps the generated ID out of writable fields", () => {
   expect(collectionCreateSchema.parse({ ...input, id })).toEqual(input);

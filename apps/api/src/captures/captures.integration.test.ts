@@ -8,15 +8,19 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
+import superjson from "superjson";
 import { createDatabase } from "../db";
 import {
+  type Capture,
   capturesTable,
   expenseCollectionTable,
   expensesTable,
 } from "../db/schema";
 import * as extraction from "../expenses/extract";
+import { appRouter } from "../router";
 import { captureEvents } from "./events";
 import { processCapture } from "./process";
 import { capturesRouter } from "./router";
@@ -99,7 +103,11 @@ describe.skipIf(databaseUrl === undefined)(
       spyOn(builder, "set").mockReturnValue(saving);
       spyOn(db, "update").mockReturnValueOnce(builder);
       const insert = spyOn(db, "insert");
-      const processing = processCapture({ captureId, input, db });
+      const processing = processCapture({
+        captureId,
+        input: { ...input, id: captureId },
+        db,
+      });
 
       try {
         await savingStarted.promise;
@@ -130,10 +138,13 @@ describe.skipIf(databaseUrl === undefined)(
           Awaited<ReturnType<typeof extraction.extractExpenses>>
         >();
       spyOn(extraction, "extractExpenses").mockReturnValue(result.promise);
+      const id = crypto.randomUUID();
       const form = new FormData();
+      form.set("id", id);
       form.set("description", input.description);
       form.set("collectionId", collectionId);
       const capture = await caller.start(form);
+      expect(capture.id).toBe(id);
       expect(await caller.listActive()).toContainEqual(capture);
       const watch = (await caller.watch(capture.id))[Symbol.asyncIterator]();
       expect(await watch.next()).toMatchObject({
@@ -173,7 +184,11 @@ describe.skipIf(databaseUrl === undefined)(
         expenses: [],
         failures,
       });
-      await processCapture({ captureId, input, db });
+      await processCapture({
+        captureId,
+        input: { ...input, id: captureId },
+        db,
+      });
       const watch = (await caller.watch(captureId))[Symbol.asyncIterator]();
       expect(await watch.next()).toMatchObject({
         value: {
@@ -184,6 +199,82 @@ describe.skipIf(databaseUrl === undefined)(
       expect(await watch.next()).toEqual({ done: true, value: undefined });
     });
 
+    test("accepts multipart captures over HTTP and persists their expenses", async () => {
+      const result =
+        Promise.withResolvers<
+          Awaited<ReturnType<typeof extraction.extractExpenses>>
+        >();
+      const extract = spyOn(extraction, "extractExpenses").mockReturnValue(
+        result.promise,
+      );
+      const id = crypto.randomUUID();
+      const image = new File(["receipt"], "receipt.png", { type: "image/png" });
+      const form = new FormData();
+      form.set("id", id);
+      form.set("collectionId", collectionId);
+      form.set("description", "  Coffee  ");
+      form.append("files", image);
+      const response = await fetchRequestHandler({
+        endpoint: "/trpc",
+        req: new Request("http://localhost/trpc/captures.start", {
+          method: "POST",
+          body: form,
+        }),
+        router: appRouter,
+        createContext: () => ({ db }),
+      });
+      const capture: Capture = {
+        id,
+        status: "extracting",
+        description: "Coffee",
+        fileNames: [image.name],
+        failures: null,
+      };
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        result: { data: superjson.serialize(capture) },
+      });
+      expect(await caller.listActive()).toContainEqual(capture);
+      expect(extract).toHaveBeenCalledWith({
+        id,
+        collectionId,
+        description: "Coffee",
+        files: [
+          expect.objectContaining({
+            name: image.name,
+            type: image.type,
+            size: image.size,
+          }),
+        ],
+      });
+
+      const watch = (await caller.watch(id))[Symbol.asyncIterator]();
+      await watch.next();
+      const purchasedAt = new Date("2026-11-13T12:00:00Z");
+      const expenses = extracted.expenses.map((expense) => ({
+        ...expense,
+        purchasedAt,
+      }));
+      result.resolve({ expenses, failures: [] });
+      expect(await watch.next()).toMatchObject({
+        value: { capture: { status: "saving" } },
+      });
+      expect(await watch.next()).toMatchObject({
+        value: {
+          capture: { status: "complete" },
+          createdExpenses: [{ ...expenses[0], captureId: id, collectionId }],
+        },
+      });
+      expect(await watch.next()).toEqual({ done: true, value: undefined });
+      expect(
+        await db
+          .select()
+          .from(expensesTable)
+          .where(eq(expensesTable.captureId, id)),
+      ).toMatchObject([{ ...expenses[0], captureId: id, collectionId }]);
+    });
+
     test("persists extraction errors, publishes their message, and ends the subscription", async () => {
       const captureId = await createCapture();
       spyOn(extraction, "extractExpenses").mockRejectedValue(
@@ -191,7 +282,11 @@ describe.skipIf(databaseUrl === undefined)(
       );
       const watch = (await caller.watch(captureId))[Symbol.asyncIterator]();
       await watch.next();
-      await processCapture({ captureId, input, db });
+      await processCapture({
+        captureId,
+        input: { ...input, id: captureId },
+        db,
+      });
       expect(await watch.next()).toMatchObject({
         value: {
           capture: { status: "failed" },
@@ -224,7 +319,7 @@ describe.skipIf(databaseUrl === undefined)(
       spyOn(extraction, "extractExpenses").mockResolvedValue(extracted);
       await processCapture({
         captureId,
-        input: { ...input, collectionId: crypto.randomUUID() },
+        input: { ...input, id: captureId, collectionId: crypto.randomUUID() },
         db,
       });
       const [capture] = await db

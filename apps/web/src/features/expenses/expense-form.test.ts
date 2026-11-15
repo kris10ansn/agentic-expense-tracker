@@ -36,6 +36,7 @@ test("creates an API input with a Date, currency, and no collection", () => {
 test("preserves purchase time and fields outside the edit form", () => {
   const expense: Expense = {
     id: "expense",
+    captureId: null,
     title: "Coffee",
     amountInCents: 5025,
     currency: "EUR",

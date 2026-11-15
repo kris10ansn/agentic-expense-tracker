@@ -5,6 +5,7 @@ import { groupExpenses, sumExpenses } from "./group-expenses";
 function expense(id: string, date: string, amountInCents: number): Expense {
   return {
     id,
+    captureId: null,
     purchasedAt: new Date(`${date}T12:00:00`),
     createdAt: new Date("2026-11-13T00:00:00Z"),
     updatedAt: new Date("2026-11-13T00:00:00Z"),

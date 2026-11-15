@@ -59,7 +59,17 @@ bun run test
 bun run build
 ```
 
-`bun run test` runs API tests and focused web tests for amount formatting, expense grouping, and URL filters.
+`bun run test` runs API tests and web tests for expense forms, formatting, grouping, URL filters, and capture cache updates. AI extraction tests mock the provider's HTTP responses and do not require an API key.
+
+PostgreSQL integration tests run when `TEST_DATABASE_URL` is set. These cover collection persistence, expense ordering, the capture lifecycle, startup recovery, and watcher shutdown. Each suite creates, migrates, and drops its own temporary database, so the database user must have permission to create databases.
+
+With the local database running and the default credentials from `.env.example`, run the full suite:
+
+```sh
+TEST_DATABASE_URL=postgresql://ai_expenses:ai_expenses@127.0.0.1:5432/ai_expenses bun run test
+```
+
+Adjust the URL if your local database settings differ. Without `TEST_DATABASE_URL`, the PostgreSQL integration tests are skipped.
 
 `bun run check` checks formatting, lint rules, and imports with Biome. Use `bun run check:fix` to apply safe fixes, or `bun run format` to apply formatting only.
 
