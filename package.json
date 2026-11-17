@@ -10,11 +10,11 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "bun run --parallel --filter './apps/*' dev",
+    "dev": "bun scripts/dev.ts",
     "dev:api": "bun run --filter @ai-expenses/api dev",
     "dev:web": "bun run --filter @ai-expenses/web dev",
     "build": "bun run typecheck && bun run --filter './apps/*' build",
-    "typecheck": "bun run --filter './apps/*' typecheck",
+    "typecheck": "bun --bun run tsc --project scripts/tsconfig.json && bun run --filter './apps/*' typecheck",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "format": "biome format --write .",

@@ -7,7 +7,7 @@ import { defineConfig, loadEnv } from "vite";
 const envDir = fileURLToPath(new URL("../../", import.meta.url));
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, envDir, "API_");
+  const env = loadEnv(mode, envDir, ["API_", "WEB_"]);
   const proxy = {
     "/trpc": {
       target: `http://127.0.0.1:${env.API_PORT ?? "3001"}`,
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
     ],
-    server: { port: 5173, strictPort: true, proxy },
+    server: { port: Number(env.WEB_PORT ?? 5173), strictPort: true, proxy },
     preview: { port: 4173, strictPort: true, proxy },
   };
 });
