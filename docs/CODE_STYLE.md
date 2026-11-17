@@ -8,3 +8,5 @@
 - Avoid code blocks without curly braces
 
 - Have space between logic
+
+- Tailwind: avoid using specific pixel numbers and sizes specified in square brackets - try to use the predefined sizes where possible
