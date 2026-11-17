@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { SQL } from "bun";
-import { DrizzleQueryError, eq } from "drizzle-orm";
+import { and, DrizzleQueryError, eq } from "drizzle-orm";
 import {
   collectionCreateSchema,
   collectionIdSchema,
@@ -9,21 +9,29 @@ import {
   collectionUpdateSchema,
   expenseCollectionTable,
 } from "../db/schema";
-import { publicProcedure, t } from "../trpc";
+import { protectedProcedure, t } from "../trpc";
 
 export const collectionsRouter = t.router({
-  list: publicProcedure.output(collectionsSchema).query(({ ctx }) => {
-    return ctx.db.select().from(expenseCollectionTable);
+  list: protectedProcedure.output(collectionsSchema).query(({ ctx }) => {
+    return ctx.db
+      .select()
+      .from(expenseCollectionTable)
+      .where(eq(expenseCollectionTable.userId, ctx.user.id));
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(collectionIdSchema)
     .output(collectionSchema)
     .query(async ({ ctx, input }) => {
       const [collection] = await ctx.db
         .select()
         .from(expenseCollectionTable)
-        .where(eq(expenseCollectionTable.id, input.id))
+        .where(
+          and(
+            eq(expenseCollectionTable.id, input.id),
+            eq(expenseCollectionTable.userId, ctx.user.id),
+          ),
+        )
         .limit(1);
 
       if (collection === undefined) {
@@ -36,13 +44,13 @@ export const collectionsRouter = t.router({
       return collection;
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(collectionCreateSchema)
     .output(collectionSchema)
     .mutation(async ({ ctx, input }) => {
       const [collection] = await ctx.db
         .insert(expenseCollectionTable)
-        .values(input)
+        .values({ ...input, userId: ctx.user.id })
         .returning();
 
       if (collection === undefined) {
@@ -55,7 +63,7 @@ export const collectionsRouter = t.router({
       return collection;
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(collectionUpdateSchema)
     .output(collectionSchema)
     .mutation(async ({ ctx, input }) => {
@@ -63,7 +71,12 @@ export const collectionsRouter = t.router({
       const [collection] = await ctx.db
         .update(expenseCollectionTable)
         .set(changes)
-        .where(eq(expenseCollectionTable.id, id))
+        .where(
+          and(
+            eq(expenseCollectionTable.id, id),
+            eq(expenseCollectionTable.userId, ctx.user.id),
+          ),
+        )
         .returning();
 
       if (collection === undefined) {
@@ -76,13 +89,18 @@ export const collectionsRouter = t.router({
       return collection;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(collectionIdSchema)
     .mutation(async ({ ctx, input }) => {
       try {
         const [collection] = await ctx.db
           .delete(expenseCollectionTable)
-          .where(eq(expenseCollectionTable.id, input.id))
+          .where(
+            and(
+              eq(expenseCollectionTable.id, input.id),
+              eq(expenseCollectionTable.userId, ctx.user.id),
+            ),
+          )
           .returning({ id: expenseCollectionTable.id });
 
         if (collection === undefined) {

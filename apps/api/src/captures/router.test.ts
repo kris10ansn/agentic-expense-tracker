@@ -7,11 +7,12 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { authenticatedContext } from "../auth/test-context";
 import { createDatabase } from "../db";
 import { appRouter } from "../router";
 
 const db = createDatabase("postgresql://test:test@localhost:1/expenses");
-const caller = appRouter.createCaller({ db });
+const caller = appRouter.createCaller(authenticatedContext(db));
 
 function expenseForm(description = "", files: File[] = []) {
   const form = new FormData();

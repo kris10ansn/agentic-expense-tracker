@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
+import { seedTestUser, testAuthConfig, testUserId } from "./auth/test-context";
 import { createDatabase } from "./db";
 import { type Capture, capturesTable } from "./db/schema";
 
@@ -24,6 +25,7 @@ describe.skipIf(databaseUrl === undefined)(
     ];
     const captures = statuses.map((status) => ({
       id: crypto.randomUUID(),
+      userId: testUserId,
       status,
       description: "Coffee",
       fileNames: [],
@@ -35,6 +37,7 @@ describe.skipIf(databaseUrl === undefined)(
       await migrate(db, {
         migrationsFolder: new URL("../drizzle", import.meta.url).pathname,
       });
+      await seedTestUser(db);
       await db.insert(capturesTable).values(captures);
     });
 
@@ -60,6 +63,7 @@ describe.skipIf(databaseUrl === undefined)(
         {
           env: {
             ...process.env,
+            ...testAuthConfig,
             API_PORT: String(port),
             DATABASE_URL: url.href,
             GOOGLE_GENERATIVE_AI_API_KEY: "test-api-key",

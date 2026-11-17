@@ -5,7 +5,7 @@ const config = configSchema.pick({ DATABASE_URL: true }).parse(process.env);
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/db/schema.ts",
+  schema: ["./src/db/schema.ts", "./src/auth/schema.ts"],
   out: "./drizzle",
   dbCredentials: { url: config.DATABASE_URL },
 });

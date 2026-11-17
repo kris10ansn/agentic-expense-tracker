@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
+import {
+  authenticatedContext,
+  seedTestUser,
+  testUserId,
+} from "../auth/test-context";
 import { createDatabase } from "../db";
 import { expensesTable } from "../db/schema";
 import { appRouter } from "../router";
@@ -12,13 +17,14 @@ describe.skipIf(databaseUrl === undefined)("expenses with PostgreSQL", () => {
   const databaseName = `expenses_test_${crypto.randomUUID().replaceAll("-", "")}`;
   url.pathname = `/${databaseName}`;
   const db = createDatabase(url.href);
-  const caller = appRouter.createCaller({ db });
+  const caller = appRouter.createCaller(authenticatedContext(db));
 
   beforeAll(async () => {
     await admin.$client.unsafe(`CREATE DATABASE "${databaseName}"`);
     await migrate(db, {
       migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
     });
+    await seedTestUser(db);
   });
 
   afterAll(async () => {
@@ -59,7 +65,11 @@ describe.skipIf(databaseUrl === undefined)("expenses with PostgreSQL", () => {
       purchasedAt: new Date("2026-11-13T12:00:00Z"),
       updatedAt: new Date("2026-11-13T12:00:00Z"),
     };
-    await db.insert(expensesTable).values([middle, oldest, newest]);
+    await db
+      .insert(expensesTable)
+      .values(
+        [middle, oldest, newest].map((row) => ({ ...row, userId: testUserId })),
+      );
 
     expect(await caller.expenses.list()).toEqual(
       [newest, middle, oldest].map((expense) => ({

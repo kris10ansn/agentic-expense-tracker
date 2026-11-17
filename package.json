@@ -25,7 +25,8 @@
     "db:logs": "docker compose logs -f db",
     "db:generate": "bun run --filter @ai-expenses/api db:generate",
     "db:migrate": "bun run --filter @ai-expenses/api db:migrate",
-    "db:shell": "docker compose exec db sh -c 'psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
+    "db:shell": "docker compose exec db sh -c 'psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+    "account": "bun run --cwd apps/api account"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

@@ -12,6 +12,11 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
 import superjson from "superjson";
+import {
+  authenticatedContext,
+  seedTestUser,
+  testUserId,
+} from "../auth/test-context";
 import { createDatabase } from "../db";
 import {
   type Capture,
@@ -37,7 +42,7 @@ describe.skipIf(databaseUrl === undefined)(
     const databaseName = `captures_test_${crypto.randomUUID().replaceAll("-", "")}`;
     url.pathname = `/${databaseName}`;
     const db = createDatabase(url.href);
-    const caller = capturesRouter.createCaller({ db });
+    const caller = capturesRouter.createCaller(authenticatedContext(db));
     const collectionId = crypto.randomUUID();
     const input = { description: "Coffee", files: [], collectionId };
     const extracted = {
@@ -58,7 +63,9 @@ describe.skipIf(databaseUrl === undefined)(
       await migrate(db, {
         migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
       });
+      await seedTestUser(db);
       await db.insert(expenseCollectionTable).values({
+        userId: testUserId,
         id: collectionId,
         title: "Meals",
         color: "#458a72",
@@ -78,6 +85,7 @@ describe.skipIf(databaseUrl === undefined)(
     async function createCapture() {
       const id = crypto.randomUUID();
       await db.insert(capturesTable).values({
+        userId: testUserId,
         id,
         status: "extracting",
         description: input.description,
@@ -104,6 +112,7 @@ describe.skipIf(databaseUrl === undefined)(
       spyOn(db, "update").mockReturnValueOnce(builder);
       const insert = spyOn(db, "insert");
       const processing = processCapture({
+        userId: testUserId,
         captureId,
         input: { ...input, id: captureId },
         db,
@@ -185,6 +194,7 @@ describe.skipIf(databaseUrl === undefined)(
         failures,
       });
       await processCapture({
+        userId: testUserId,
         captureId,
         input: { ...input, id: captureId },
         db,
@@ -221,7 +231,7 @@ describe.skipIf(databaseUrl === undefined)(
           body: form,
         }),
         router: appRouter,
-        createContext: () => ({ db }),
+        createContext: () => authenticatedContext(db),
       });
       const capture: Capture = {
         id,
@@ -283,6 +293,7 @@ describe.skipIf(databaseUrl === undefined)(
       const watch = (await caller.watch(captureId))[Symbol.asyncIterator]();
       await watch.next();
       await processCapture({
+        userId: testUserId,
         captureId,
         input: { ...input, id: captureId },
         db,
@@ -318,6 +329,7 @@ describe.skipIf(databaseUrl === undefined)(
       const captureId = await createCapture();
       spyOn(extraction, "extractExpenses").mockResolvedValue(extracted);
       await processCapture({
+        userId: testUserId,
         captureId,
         input: { ...input, id: captureId, collectionId: crypto.randomUUID() },
         db,

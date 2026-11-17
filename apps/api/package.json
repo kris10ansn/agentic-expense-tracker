@@ -14,12 +14,15 @@
     "typecheck": "bun --bun run tsc --noEmit",
     "test": "bun test src",
     "db:generate": "bun --env-file=../../.env --bun run drizzle-kit generate",
-    "db:migrate": "bun --env-file=../../.env src/db/migrate.ts"
+    "db:migrate": "bun --env-file=../../.env src/db/migrate.ts",
+    "account": "bun --env-file=../../.env src/auth/command.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.117",
+    "@better-auth/drizzle-adapter": "1.7.25",
     "@trpc/server": "11.28.0",
     "ai": "^7.0.169",
+    "better-auth": "1.7.25",
     "drizzle-orm": "^0.45.4",
     "superjson": "^2.2.6",
     "zod": "^4.6.7"

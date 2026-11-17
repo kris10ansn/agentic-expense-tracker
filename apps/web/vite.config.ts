@@ -9,6 +9,10 @@ const envDir = fileURLToPath(new URL("../../", import.meta.url));
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, envDir, ["API_", "WEB_"]);
   const proxy = {
+    "/api/auth": {
+      target: `http://127.0.0.1:${env.API_PORT ?? "3001"}`,
+      changeOrigin: true,
+    },
     "/trpc": {
       target: `http://127.0.0.1:${env.API_PORT ?? "3001"}`,
       changeOrigin: true,

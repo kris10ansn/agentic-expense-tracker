@@ -1,12 +1,13 @@
 import { afterAll, afterEach, expect, mock, spyOn, test } from "bun:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
+import { authenticatedContext } from "../auth/test-context";
 import { createDatabase } from "../db";
 import { collectionCreateSchema, expenseCollectionTable } from "../db/schema";
 import { appRouter } from "../router";
 
 const db = createDatabase("postgresql://test:test@localhost:1/expenses");
-const caller = appRouter.createCaller({ db }).collections;
+const caller = appRouter.createCaller(authenticatedContext(db)).collections;
 const id = "00000000-0000-4000-8000-000000000001";
 const input = { title: "Groceries", color: "#458a72" };
 
@@ -19,7 +20,7 @@ function mutate(operation: "create" | "update", input: unknown) {
       body: superjson.stringify(input),
     }),
     router: appRouter,
-    createContext: () => ({ db }),
+    createContext: () => authenticatedContext(db),
   });
 }
 
