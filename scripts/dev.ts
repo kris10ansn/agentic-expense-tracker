@@ -33,7 +33,7 @@ if (ports.data["api-port"] !== undefined) {
 }
 
 const child = Bun.spawn(
-  [process.execPath, "run", "--parallel", "--filter", "./apps/*", "dev"],
+  [process.execPath, "run", "--parallel", "dev:api", "dev:web"],
   { env, stdin: "inherit", stdout: "inherit", stderr: "inherit" },
 );
 

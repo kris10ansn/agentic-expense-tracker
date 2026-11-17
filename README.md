@@ -50,6 +50,22 @@ The empty workspace runs with `bun run dev:web` alone. The API listens on <http:
 
 `bun run dev:api` and `bun run dev:web` start the apps separately. Both read settings from the root `.env`. Vite proxies `/trpc` to the API using `API_PORT` and keeps database settings out of browser code.
 
+Override either development port or both:
+
+```sh
+bun run dev --web-port 5174
+bun run dev --api-port 3002
+bun run dev --web-port 5174 --api-port 3002
+```
+
+Unspecified ports keep their existing settings. The defaults are 5173 for the web app and 3001 for the API. Port arguments must be integers between 1 and 65535 and override environment settings. Changing the API port also updates Vite's `/trpc` proxy.
+
+To start only the frontend on a custom port, use Vite's `--port` option:
+
+```sh
+bun run dev:web --port 5174
+```
+
 ## Check changes
 
 ```sh
