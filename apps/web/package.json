@@ -8,7 +8,8 @@
     "preview": "bun --bun run vite preview",
     "typecheck": "bun --bun run tsc --noEmit",
     "smoke": "bun scripts/smoke.ts",
-    "test:startup": "bun scripts/startup.browser.ts"
+    "test:startup": "bun scripts/startup.browser.ts",
+    "test:captures": "bun scripts/capture-states.browser.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",

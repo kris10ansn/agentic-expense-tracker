@@ -1,13 +1,24 @@
 import { skipToken } from "@tanstack/react-query";
-import { LoaderCircle } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle, WifiOff } from "lucide-react";
 import { useCallback } from "react";
 import { twMerge } from "tailwind-merge";
-import { useCaptureProgress } from "./useCaptureProgress";
+import {
+  type CaptureAttentionState,
+  type CaptureCardState,
+  useCaptureProgress,
+} from "./useCaptureProgress";
+
+export type CaptureNotice = {
+  id: string;
+  description: string;
+  state: CaptureAttentionState;
+};
 
 type PendingCaptureProps = {
   captureId: string | null;
   description: string;
   files: File[];
+  onAttention: (notice: CaptureNotice) => void;
   className?: string;
 };
 
@@ -15,9 +26,90 @@ export function PendingCapture({
   captureId,
   description,
   files,
+  onAttention,
   className,
 }: PendingCaptureProps) {
-  const message = useCaptureProgress(captureId ?? skipToken);
+  const state = useCaptureProgress(captureId ?? skipToken, (state) => {
+    if (captureId !== null) {
+      onAttention({ id: captureId, description, state });
+    }
+  });
+
+  return (
+    <CaptureCard
+      state={state}
+      description={description}
+      files={files}
+      className={className}
+    />
+  );
+}
+
+const cardContent = {
+  sending: {
+    title: "Pending entry",
+    message: "Sending data...",
+    icon: LoaderCircle,
+  },
+  connecting: {
+    title: "Checking progress",
+    message: "Connecting to progress updates...",
+    icon: WifiOff,
+  },
+  extracting: {
+    title: "Pending entry",
+    message: "Running AI analysis...",
+    icon: LoaderCircle,
+  },
+  saving: {
+    title: "Pending entry",
+    message: "Saving new expenses...",
+    icon: LoaderCircle,
+  },
+  complete: {
+    title: "Complete",
+    message: "Processing complete.",
+    icon: CircleCheck,
+  },
+  disconnected: {
+    title: "Status unavailable",
+    message:
+      "Progress updates were interrupted. Your entry may still be processing or already saved.",
+    icon: WifiOff,
+  },
+  failed: {
+    title: "Capture failed",
+    message: "Check your expenses before trying again.",
+    icon: CircleAlert,
+  },
+  "needs-review": {
+    title: "Needs review",
+    message: "Some items could not be extracted. Review the details below.",
+    icon: CircleAlert,
+  },
+} satisfies Record<
+  CaptureCardState["kind"],
+  { title: string; message: string; icon: typeof LoaderCircle }
+>;
+
+export function CaptureCard({
+  state,
+  description,
+  files,
+  className,
+  onDismiss,
+}: {
+  state: CaptureCardState;
+  description: string;
+  files: File[];
+  className?: string | undefined;
+  onDismiss?: () => void;
+}) {
+  const { title, message, icon: Icon } = cardContent[state.kind];
+  const processing =
+    state.kind === "sending" ||
+    state.kind === "extracting" ||
+    state.kind === "saving";
 
   return (
     <div
@@ -31,12 +123,24 @@ export function PendingCapture({
     >
       <div className="space-y-3 px-3.5 py-3">
         <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-500">
-          <LoaderCircle
+          <Icon
             aria-hidden="true"
-            className="size-3.5 shrink-0 motion-safe:animate-spin"
+            className={twMerge(
+              "size-3.5 shrink-0",
+              processing && "motion-safe:animate-spin",
+            )}
             strokeWidth={1.75}
           />
-          <span>Pending entry</span>
+          <span>{title}</span>
+          {onDismiss && (
+            <button
+              type="button"
+              className="ml-auto rounded px-2 py-1 text-neutral-600 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2"
+              onClick={onDismiss}
+            >
+              Dismiss
+            </button>
+          )}
         </div>
         {files.length > 0 && (
           <ul className="space-y-3">
@@ -51,9 +155,24 @@ export function PendingCapture({
           </p>
         )}
       </div>
-      <div className="flex items-center gap-2 border-t border-dashed border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs">
-        <p className="font-medium text-neutral-500">{message}</p>
-        <span className="ml-auto text-neutral-400">Not saved yet</span>
+      <div className="space-y-2 border-t border-dashed border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs">
+        {state.kind === "failed" && (
+          <p className="font-medium text-red-700">{state.message}</p>
+        )}
+        <p className="text-neutral-600">{message}</p>
+        {state.kind === "needs-review" && (
+          <ul className="space-y-2">
+            {state.failures.map((failure, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: This fixed result list is never reordered.
+              <li key={index}>
+                <p className="font-medium text-neutral-700">
+                  {failure.sourceText}
+                </p>
+                <p className="text-neutral-600">{failure.reason}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

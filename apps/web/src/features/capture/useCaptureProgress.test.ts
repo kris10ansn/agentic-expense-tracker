@@ -5,7 +5,7 @@ import { trpc } from "../../trpc";
 import {
   applyCaptureEvent,
   type Capture,
-  getCaptureMessage,
+  getCaptureState,
 } from "./useCaptureProgress";
 
 const capture: Capture = {
@@ -34,21 +34,83 @@ const complete = {
   createdExpenses: [expense],
 } satisfies Parameters<typeof applyCaptureEvent>[2];
 
-test("shows progress and extraction errors", () => {
-  expect(getCaptureMessage(undefined)).toBe("Sending data...");
-  expect(getCaptureMessage({ capture: { status: "extracting" } })).toBe(
-    "Running AI analysis...",
-  );
-  expect(getCaptureMessage({ capture: { status: "saving" } })).toBe(
-    "Saving new expenses...",
-  );
-  expect(getCaptureMessage(complete)).toBe("Complete!");
+const connected = {
+  sending: false,
+  connectionStatus: "pending",
+  connectionError: false,
+} satisfies Omit<Parameters<typeof getCaptureState>[0], "event">;
+
+test("distinguishes uploading, awaiting progress, and processing", () => {
   expect(
-    getCaptureMessage({
-      capture: { status: "failed" },
-      errorMessage: "AI unavailable",
+    getCaptureState({ ...connected, sending: true, event: undefined }),
+  ).toEqual({ kind: "sending" });
+  expect(getCaptureState({ ...connected, event: undefined })).toEqual({
+    kind: "connecting",
+  });
+  for (const status of ["extracting", "saving"] satisfies Capture["status"][]) {
+    expect(
+      getCaptureState({ ...connected, event: { capture: { status } } }),
+    ).toEqual({ kind: status });
+  }
+  expect(getCaptureState({ ...connected, event: complete })).toEqual({
+    kind: "complete",
+  });
+});
+
+test("connection loss and an unexpectedly ended stream stop processing", () => {
+  for (const connectionStatus of [
+    "connecting",
+    "error",
+    "idle",
+  ] satisfies Parameters<typeof getCaptureState>[0]["connectionStatus"][]) {
+    expect(
+      getCaptureState({
+        ...connected,
+        connectionStatus,
+        event: { capture: { status: "extracting" } },
+      }),
+    ).toEqual({ kind: "disconnected" });
+  }
+  expect(
+    getCaptureState({
+      ...connected,
+      connectionStatus: "connecting",
+      connectionError: true,
+      event: undefined,
     }),
-  ).toBe("AI unavailable");
+  ).toEqual({ kind: "disconnected" });
+});
+
+test("terminal outcomes survive subscription shutdown and connection errors", () => {
+  const disconnected = {
+    ...connected,
+    connectionStatus: "idle",
+    connectionError: true,
+  } satisfies Omit<Parameters<typeof getCaptureState>[0], "event">;
+  expect(
+    getCaptureState({
+      ...disconnected,
+      event: { capture: { status: "failed" }, errorMessage: "AI unavailable" },
+    }),
+  ).toEqual({ kind: "failed", message: "AI unavailable" });
+  expect(getCaptureState({ ...disconnected, event: complete })).toEqual({
+    kind: "complete",
+  });
+
+  const failures = [
+    {
+      partialExpense: { title: "Coffee" },
+      sourceText: "Coffee",
+      reason: "Missing amount",
+      suggestions: [],
+    },
+  ];
+  expect(
+    getCaptureState({
+      ...disconnected,
+      event: { ...complete, capture: { status: "complete", failures } },
+    }),
+  ).toEqual({ kind: "needs-review", failures });
 });
 
 test("completion merges expenses once, removes only its capture, and refreshes both lists", () => {
@@ -126,19 +188,22 @@ test("completion does not create an incomplete cache when lists have not loaded"
   client.clear();
 });
 
-test("progress and failure keep the capture visible without invalidating expenses", () => {
+test("progress keeps the capture active; failure removes it and refreshes possibly saved expenses", () => {
   const client = new QueryClient();
   const expensesKey = trpc.expenses.list.queryKey();
   const capturesKey = trpc.captures.listActive.queryKey();
   client.setQueryData(expensesKey, [expense]);
   client.setQueryData(capturesKey, [capture]);
   applyCaptureEvent(client, capture.id, { capture: { status: "saving" } });
+  expect(client.getQueryData(capturesKey)).toEqual([capture]);
+  expect(client.getQueryState(expensesKey)?.isInvalidated).toBe(false);
   applyCaptureEvent(client, capture.id, {
     capture: { status: "failed" },
     errorMessage: "AI unavailable",
   });
   expect(client.getQueryData(expensesKey)).toEqual([expense]);
-  expect(client.getQueryData(capturesKey)).toEqual([capture]);
-  expect(client.getQueryState(expensesKey)?.isInvalidated).toBe(false);
+  expect(client.getQueryData(capturesKey)).toEqual([]);
+  expect(client.getQueryState(expensesKey)?.isInvalidated).toBe(true);
+  expect(client.getQueryState(capturesKey)?.isInvalidated).toBe(true);
   client.clear();
 });

@@ -10,7 +10,11 @@ import {
   useSendingCaptures,
   useStartCapture,
 } from "../features/capture/mutations";
-import { PendingCapture } from "../features/capture/PendingCapture";
+import {
+  CaptureCard,
+  type CaptureNotice,
+  PendingCapture,
+} from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { ExpenseListSkeleton } from "../features/expenses/ExpenseSkeletons";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
@@ -20,6 +24,19 @@ export function HomePage() {
   const { addExpense } = useWorkspace();
 
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
+  const [notices, setNotices] = useState<Record<string, CaptureNotice>>({});
+
+  const handleAttention = useCallback((notice: CaptureNotice) => {
+    setNotices((current) => ({ ...current, [notice.id]: notice }));
+  }, []);
+
+  const dismissNotice = useCallback((id: string) => {
+    setNotices((current) => {
+      const remaining = { ...current };
+      delete remaining[id];
+      return remaining;
+    });
+  }, []);
 
   const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
   const sendingCaptures = useSendingCaptures();
@@ -35,7 +52,7 @@ export function HomePage() {
       .filter((capture) => capture !== undefined)
       .filter((capture) => !pendingIds.has(capture.id))
       .map((capture) => ({ ...capture, captureId: null })),
-  ];
+  ].filter((capture) => notices[capture.id] === undefined);
 
   const handleSubmit = useCallback(
     async ({ description, files, collectionId }: CaptureDockData) => {
@@ -60,12 +77,22 @@ export function HomePage() {
           aria-label="Recent expenses"
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
+          {Object.values(notices).map((notice) => (
+            <CaptureCard
+              key={notice.id}
+              state={notice.state}
+              description={notice.description}
+              files={filesRecord[notice.id] ?? []}
+              onDismiss={() => dismissNotice(notice.id)}
+            />
+          ))}
           {captures.map((capture) => (
             <PendingCapture
               key={capture.id}
               captureId={capture.captureId}
               description={capture.description}
               files={filesRecord[capture.id] ?? []}
+              onAttention={handleAttention}
             />
           ))}
           <RecentExpenses />
