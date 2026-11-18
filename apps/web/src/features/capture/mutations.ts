@@ -4,6 +4,7 @@ import {
   useMutationState,
   useQueryClient,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { ExpenseFormData } from "../../../../api/src/expenses/input";
 import { client, trpc } from "../../trpc";
 
@@ -44,15 +45,20 @@ export function useStartCapture() {
 
 export function useDismissCapture() {
   const queryClient = useQueryClient();
+  const queryKey = trpc.captures.listVisible.queryKey();
 
   return useMutation(
     trpc.captures.dismiss.mutationOptions({
-      onSuccess: async ({ id }) => {
-        const queryKey = trpc.captures.listVisible.queryKey();
+      onMutate: async (id) => {
         await queryClient.cancelQueries({ queryKey });
         queryClient.setQueryData(queryKey, (captures) =>
           captures?.filter((capture) => capture.id !== id),
         );
+      },
+      onError: () => {
+        toast.error("Unable to dismiss a capture. Please try again.");
+      },
+      onSettled: () => {
         void queryClient.invalidateQueries({ queryKey });
       },
     }),

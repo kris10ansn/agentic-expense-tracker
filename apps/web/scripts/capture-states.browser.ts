@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import type { CaptureEvent } from "@ai-expenses/api";
 import { chromium, type Response, type Route } from "playwright";
 import superjson from "superjson";
+import { z } from "zod";
 import type { Capture } from "../src/features/capture/useCaptureProgress";
 
 const origin = process.env.WEB_URL ?? "http://127.0.0.1:4173";
@@ -92,6 +93,9 @@ try {
     let currentCapture: Capture = capture;
     let dismissed = false;
     let dismissalAttempts = 0;
+    let failRefresh = false;
+    const failedRefreshSeen = Promise.withResolvers<void>();
+    const allowFailedDismissal = Promise.withResolvers<void>();
     const allowDismissal = Promise.withResolvers<void>();
     const acceptUpload = Promise.withResolvers<void>();
     const sendOutcome = Promise.withResolvers<void>();
@@ -175,6 +179,11 @@ try {
             if (name === "captures.dismiss") {
               dismissalAttempts++;
               if (dismissalAttempts === 1) {
+                await allowFailedDismissal.promise;
+                currentCapture = {
+                  ...currentCapture,
+                  fileNames: ["refetched-receipt.png"],
+                };
                 return {
                   error: superjson.serialize({
                     code: -32603,
@@ -194,6 +203,16 @@ try {
             }
             if (name === "captures.listVisible") {
               activeReads++;
+              if (failRefresh) {
+                failedRefreshSeen.resolve();
+                return {
+                  error: superjson.serialize({
+                    code: -32603,
+                    message: "Capture list unavailable",
+                    data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
+                  }),
+                };
+              }
               return {
                 result: {
                   data: superjson.serialize(
@@ -434,22 +453,75 @@ try {
           await freshCard
             .getByRole("button", { name: "Dismiss", exact: true })
             .click();
+          await freshCard.waitFor({ state: "detached" });
+          assert.equal(
+            dismissed,
+            false,
+            "Dismissal must hide the card before the server replies",
+          );
+          failRefresh = scenario === "failed";
+          if (scenario === "review") {
+            await freshPage
+              .getByRole("navigation", { name: "Desktop navigation" })
+              .getByRole("link", { name: "Expenses", exact: true })
+              .click();
+            await freshPage.waitForURL(`${origin}/expenses`);
+          }
+          allowFailedDismissal.resolve();
+          const notifications = freshPage.getByRole("region", {
+            name: /Notifications/,
+          });
+          const dismissalToast = notifications.getByText(
+            "Unable to dismiss a capture. Please try again.",
+            { exact: true },
+          );
+          await dismissalToast.waitFor();
+          assert.equal(
+            await freshCard
+              .getByText("Unable to dismiss a capture. Please try again.")
+              .count(),
+            0,
+          );
+          if (failRefresh) {
+            await failedRefreshSeen.promise;
+            assert.equal(
+              await freshCard.count(),
+              0,
+              "A failed refetch must leave the error visible without restoring a cached snapshot",
+            );
+            failRefresh = false;
+          }
+          if (scenario === "review") {
+            await freshPage
+              .getByRole("navigation", { name: "Desktop navigation" })
+              .getByRole("link", { name: "Home", exact: true })
+              .click();
+            await freshPage.waitForURL(`${origin}/`);
+          }
+          await freshCard.waitFor();
           await freshCard
-            .getByRole("alert")
-            .getByText("Unable to dismiss this capture. Please try again.")
+            .getByText("refetched-receipt.png", { exact: true })
             .waitFor();
           assert.equal(dismissed, false);
+          await notifications
+            .getByRole("button", { name: "Close toast", exact: true })
+            .click();
+          await dismissalToast.waitFor({ state: "detached" });
           await freshCard
             .getByRole("button", { name: "Dismiss", exact: true })
             .click();
-          const dismissing = freshCard.getByRole("button", {
-            name: "Dismissing...",
-            exact: true,
-          });
-          await dismissing.waitFor();
-          assert.equal(await dismissing.isDisabled(), true);
-          allowDismissal.resolve();
           await freshCard.waitFor({ state: "detached" });
+          assert.equal(
+            dismissed,
+            false,
+            "Retry must also hide the card optimistically",
+          );
+          const reconciled = freshPage.waitForResponse((response) =>
+            response.url().includes("captures.listVisible"),
+          );
+          allowDismissal.resolve();
+          await (await reconciled).finished();
+          assert.equal(await freshCard.count(), 0);
           assert.equal(dismissalAttempts, 2);
           await freshPage.reload();
           await freshPage
@@ -475,6 +547,126 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`PASS: ${scenario}`);
+  }
+
+  for (const order of ["failure-first", "success-first", "together"]) {
+    const context = await browser.newContext();
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(5000);
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      const first: Capture = {
+        ...capture,
+        status: "failed",
+        errorMessage: "AI unavailable",
+      };
+      const second = {
+        ...first,
+        id: "00000000-0000-4000-8000-000000000003",
+        description: "Second capture",
+      };
+      let stored = [first, second];
+      let reads = 0;
+      const failFirst = Promise.withResolvers<void>();
+      const finishSecond = Promise.withResolvers<void>();
+      await page.route("**/api/auth/get-session**", (route) =>
+        route.fulfill({ json: session }),
+      );
+      await page.route("**/trpc/**", async (route) => {
+        const names = new URL(route.request().url()).pathname
+          .slice("/trpc/".length)
+          .split(",");
+        const results = await Promise.all(
+          names.map(async (name, index) => {
+            if (name === "captures.listVisible") {
+              reads++;
+              return { result: { data: superjson.serialize(stored) } };
+            }
+            if (name === "captures.dismiss") {
+              const inputs = z
+                .record(z.string(), z.object({ json: z.string() }))
+                .parse(route.request().postDataJSON());
+              const id = inputs[String(index)]?.json;
+              if (id === first.id) {
+                await failFirst.promise;
+                return {
+                  error: superjson.serialize({
+                    code: -32603,
+                    message: "Dismissal unavailable",
+                    data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
+                  }),
+                };
+              }
+              assert.equal(id, second.id);
+              await finishSecond.promise;
+              stored = [first];
+              return { result: { data: superjson.serialize({ id }) } };
+            }
+            return { result: { data: superjson.serialize([]) } };
+          }),
+        );
+        await route.fulfill({ json: results });
+      });
+      await page.goto(origin);
+      const firstCard = page
+        .getByRole("status")
+        .filter({ hasText: first.description });
+      const secondCard = page
+        .getByRole("status")
+        .filter({ hasText: second.description });
+      await firstCard.waitFor();
+      await secondCard.waitFor();
+      const readsBefore = reads;
+      await firstCard
+        .getByRole("button", { name: "Dismiss", exact: true })
+        .click();
+      await firstCard.waitFor({ state: "detached" });
+      await secondCard
+        .getByRole("button", { name: "Dismiss", exact: true })
+        .click();
+      await secondCard.waitFor({ state: "detached" });
+      if (order === "failure-first") {
+        failFirst.resolve();
+        await page
+          .getByRole("region", { name: /Notifications/ })
+          .getByText("Unable to dismiss a capture. Please try again.")
+          .waitFor();
+        await firstCard.waitFor();
+        assert.ok(
+          reads > readsBefore,
+          "A failed dismissal must refetch the list",
+        );
+      }
+      if (order === "success-first") {
+        const refreshed = page.waitForResponse((response) =>
+          response.url().includes("captures.listVisible"),
+        );
+        finishSecond.resolve();
+        await (await refreshed).finished();
+        assert.equal(await secondCard.count(), 0);
+      }
+      const reconciled = page.waitForResponse((response) =>
+        response.url().includes("captures.listVisible"),
+      );
+      failFirst.resolve();
+      finishSecond.resolve();
+      await (await reconciled).finished();
+      await firstCard.waitFor();
+      await page
+        .getByRole("region", { name: /Notifications/ })
+        .getByText("Unable to dismiss a capture. Please try again.")
+        .waitFor();
+      assert.equal(await secondCard.count(), 0);
+      assert.ok(
+        reads > readsBefore,
+        "Settled dismissals must refresh server state",
+      );
+      assert.deepEqual(errors, []);
+      console.log(`PASS: concurrent dismissals ${order}`);
+    } finally {
+      await context.close();
+    }
   }
 } finally {
   await browser.close();

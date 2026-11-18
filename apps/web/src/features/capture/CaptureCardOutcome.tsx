@@ -17,11 +17,9 @@ const messages = {
 export function CaptureCardOutcome({
   state,
   onDismiss,
-  dismissing,
 }: {
   state: CaptureCardState;
   onDismiss: (() => void) | undefined;
-  dismissing: boolean;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const detailsId = useId();
@@ -87,9 +85,8 @@ export function CaptureCardOutcome({
               type="button"
               className="rounded px-2 py-1.5 text-neutral-500 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2"
               onClick={onDismiss}
-              disabled={dismissing}
             >
-              {dismissing ? "Dismissing..." : "Dismiss"}
+              Dismiss
             </button>
             {state.kind === "needs-review" && (
               <button
