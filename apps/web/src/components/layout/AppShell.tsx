@@ -3,6 +3,7 @@ import { FolderOpen, House, List, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 import { SidebarCollections } from "../../features/collections/SidebarCollections";
+import { Logo } from "../Logo";
 
 const navigation = [
   { to: "/", label: "Home", icon: House },
@@ -48,12 +49,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="expense-workspace font-inter min-h-dvh bg-neutral-100 text-neutral-900 lg:p-5">
       <aside className="fixed inset-y-8 left-5 hidden w-52 flex-col px-3 pt-3 lg:flex">
-        <Link
-          to="/"
-          aria-label="Expenses home"
-          className="px-3 text-xl font-semibold tracking-tight"
-        >
-          expenses<span className="text-blue-600">.</span>
+        <Link to="/" aria-label="Expenses home" className="px-3 text-xl">
+          <Logo />
         </Link>
         <div className="mt-10">
           <WorkspaceNavigation />

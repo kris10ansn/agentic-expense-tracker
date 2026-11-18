@@ -1,6 +1,7 @@
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../../components/inputs";
+import { Logo } from "../../components/Logo";
 
 type SessionScreenProps =
   | { kind: "loading" }
@@ -46,8 +47,8 @@ export function SessionScreen(props: SessionScreenProps) {
   return (
     <main className="font-inter flex min-h-dvh items-center justify-center bg-neutral-100 px-6 py-12 text-neutral-900">
       <div className="w-full max-w-sm text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          expenses<span className="text-blue-600">.</span>
+        <h1 className="text-2xl">
+          <Logo />
         </h1>
         <div className="mt-6 min-h-24">
           {props.kind === "loading" ? (
