@@ -1,5 +1,7 @@
 # AI Expenses
 
+This reference branch includes the [capture outcome prototype](prototypes/capture-failure/README.md), with the **Capture failed**, **Review needed**, and pending-entry designs.
+
 TypeScript monorepo with two Bun workspaces:
 
 - `apps/api`: tRPC API on Bun, Drizzle ORM for PostgreSQL, and Zod validation.

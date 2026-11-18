@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- Throwaway prototype. Three capture-outcome layouts, switchable with ?variant=A|B|C.
+     Entirely outside ai-expenses. Sample data, memory-only actions, no API calls.
+     Open this file directly, or serve this directory with python3 -m http.server 4318. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Capture outcomes · expenses design study</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%232563eb'/%3E%3Cpath d='M12 12h16v19l-4-2-4 2-4-2-4 2Z' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17h8m-8 5h6' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="?variant=A" aria-label="Capture outcomes design study"><span class="brand-mark">e.</span><span>expenses<span class="blue">.</span></span><span class="header-divider"></span><span class="studio-label">Design study 04</span></a>
+      <span class="prototype-label"><span></span>Interactive prototype</span>
+    </header>
+    <main class="studio-main">
+      <section class="study-intro">
+        <div><p class="eyebrow">CAPTURE & RECOVERY</p><h1>A clear next step when things go wrong.</h1><p class="intro-copy">Three ways to keep failed captures visible and help finish the expenses that need a little attention.</p></div>
+        <div class="study-meta"><span>LOCAL EXPLORATION</span><p>Sample data. Actions reset on reload.</p></div>
+      </section>
+      <div class="study-toolbar">
+        <div class="segmented" role="group" aria-label="Study view"><button data-view="context" aria-pressed="true">In context</button><button data-view="components" aria-pressed="false">Component library <span class="count">8</span></button></div>
+        <div class="toolbar-right"><label for="scenario">Scenario</label><select id="scenario"><option value="both">Active + both outcomes</option><option value="active">Active capture</option><option value="failed">Capture failed</option><option value="partial">Completed with failures</option><option value="empty">Completed, nothing saved</option><option value="unknown">Save outcome unknown</option><option value="success">Everything saved</option></select><div class="device-switch" role="group" aria-label="Preview width"><button data-device="desktop" aria-pressed="true" aria-label="Desktop preview"></button><button data-device="mobile" aria-pressed="false" aria-label="Mobile preview"></button></div><button id="reset-demo" class="icon-button" aria-label="Reset sample data" title="Reset sample data"></button></div>
+      </div>
+      <div id="context-view">
+        <div class="variant-caption"><div><span id="variant-number">01</span><strong id="variant-name">Keep it in the feed</strong><span id="recommendation" class="recommendation">Recommended</span></div><p id="variant-description">Persistent cards beside recent expenses. The smallest change to the current Home screen.</p></div>
+        <div class="pending-design-control"><span>Pending capture design</span><div class="segmented" role="group" aria-label="Pending capture design"><button data-pending="current" aria-pressed="true">Updated pending</button><button data-pending="proposed" aria-pressed="false">Proposed</button></div></div>
+        <div id="preview-wrap" class="preview-wrap"><div id="app" class="product-app"></div></div>
+        <div id="design-note" class="design-note"></div>
+      </div>
+      <section id="components-view" hidden aria-label="Capture outcome components"></section>
+      <details class="implementation-notes"><summary>Design assumptions & implementation notes <span>For discussion</span></summary><div><p><strong>Keep outcome and resolution separate.</strong> A completed capture can still have unresolved items. Saving or ignoring one of those items does not change the original capture outcome.</p><p><strong>Only say “nothing saved” when it is known.</strong> The current backend can mark a capture failed after expense insertion. The unknown-outcome example asks the user to check saved expenses before retrying.</p><p><strong>Recovery is proposed behavior.</strong> Retry, dismiss, ignore, and correction are simulated here. Production needs durable capture history and resolution state. The current capture list only returns active jobs, and a completed capture disappears from Home.</p><p><strong>Use the data already available.</strong> Item failures include source text, a reason, partial expense fields, and suggested values. Original image previews and automatic retry after reload need retained source files. Detailed capture-level errors also need to be persisted if they should survive reload.</p><p><strong>A saved expense is the only thing that affects totals.</strong> Reviewing, hiding, or retrying a capture must not add its unsaved items to expense totals. A retry must reconcile existing expenses before writing again.</p></div></details>
+      <footer class="study-footer"><span>expenses. / capture outcomes</span><span>Standalone exploration · no connection to the app</span></footer>
+    </main>
+    <nav id="variant-switcher" class="variant-switcher" aria-label="Compare layout variants"><button data-cycle="-1" class="switch-arrow" aria-label="Previous layout"></button><div class="switcher-label">COMPARE LAYOUTS</div><button data-variant="A" aria-pressed="true"><span>A</span>Inline cards</button><button data-variant="B" aria-pressed="false"><span>B</span>Activity panel</button><button data-variant="C" aria-pressed="false"><span>C</span>Review inbox</button><button data-cycle="1" class="switch-arrow" aria-label="Next layout"></button></nav>
+    <dialog id="review-dialog" class="review-dialog" aria-labelledby="dialog-title"></dialog>
+    <div id="toast" class="live-toast" role="status" aria-live="polite" hidden></div>
+    <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+  </body>
+</html>
