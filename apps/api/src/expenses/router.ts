@@ -1,9 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
-import { requireOwnedCollection } from "../collections/access";
-import type { Database } from "../db";
+import { requireOwnedReferences } from "../collections/access";
 import {
-  capturesTable,
   expenseCreateSchema,
   expenseIdSchema,
   expenseSchema,
@@ -12,38 +10,6 @@ import {
   expenseUpdateSchema,
 } from "../db/schema";
 import { protectedProcedure, t } from "../trpc";
-
-async function requireOwnedReferences({
-  db,
-  userId,
-  input,
-}: {
-  db: Database;
-  userId: string;
-  input: Pick<typeof expensesTable.$inferInsert, "collectionId" | "captureId">;
-}) {
-  if (input.collectionId) {
-    await requireOwnedCollection({
-      db,
-      userId,
-      collectionId: input.collectionId,
-    });
-  }
-  if (input.captureId) {
-    const [capture] = await db
-      .select({ id: capturesTable.id })
-      .from(capturesTable)
-      .where(
-        and(
-          eq(capturesTable.id, input.captureId),
-          eq(capturesTable.userId, userId),
-        ),
-      );
-    if (!capture) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Capture not found." });
-    }
-  }
-}
 
 export const expensesRouter = t.router({
   list: protectedProcedure.output(expensesSchema).query(({ ctx }) => {
