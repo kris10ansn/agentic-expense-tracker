@@ -8,42 +8,15 @@ import {
   useCaptureProgress,
 } from "./useCaptureProgress";
 
-export type CaptureNotice = {
+export type CaptureCardData = {
   id: string;
   description: string;
-  state: CaptureAttentionState;
-};
+} & (
+  | { kind: "sending" | "processing" }
+  | { kind: "notice"; state: CaptureAttentionState }
+);
 
-type PendingCaptureProps = {
-  captureId: string | null;
-  description: string;
-  files: File[];
-  onAttention: (notice: CaptureNotice) => void;
-  className?: string;
-};
-
-export function PendingCapture({
-  captureId,
-  description,
-  files,
-  onAttention,
-  className,
-}: PendingCaptureProps) {
-  const state = useCaptureProgress(captureId ?? skipToken, (state) => {
-    if (captureId !== null) {
-      onAttention({ id: captureId, description, state });
-    }
-  });
-
-  return (
-    <CaptureCard
-      state={state}
-      description={description}
-      files={files}
-      className={className}
-    />
-  );
-}
+export type CaptureNotice = Extract<CaptureCardData, { kind: "notice" }>;
 
 const cardContent = {
   sending: {
@@ -93,18 +66,30 @@ const cardContent = {
 >;
 
 export function CaptureCard({
-  state,
-  description,
+  capture,
   files,
   className,
+  onAttention,
   onDismiss,
 }: {
-  state: CaptureCardState;
-  description: string;
+  capture: CaptureCardData;
   files: File[];
-  className?: string | undefined;
-  onDismiss?: () => void;
+  className?: string;
+  onAttention: (notice: CaptureNotice) => void;
+  onDismiss: (id: string) => void;
 }) {
+  const progress = useCaptureProgress(
+    capture.kind === "processing" ? capture.id : skipToken,
+    (state) => {
+      onAttention({
+        id: capture.id,
+        description: capture.description,
+        kind: "notice",
+        state,
+      });
+    },
+  );
+  const state = capture.kind === "notice" ? capture.state : progress;
   const { title, message, icon: Icon } = cardContent[state.kind];
   const processing =
     state.kind === "sending" ||
@@ -132,11 +117,11 @@ export function CaptureCard({
             strokeWidth={1.75}
           />
           <span>{title}</span>
-          {onDismiss && (
+          {capture.kind === "notice" && (
             <button
               type="button"
               className="ml-auto rounded px-2 py-1 text-neutral-600 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2"
-              onClick={onDismiss}
+              onClick={() => onDismiss(capture.id)}
             >
               Dismiss
             </button>
@@ -149,9 +134,9 @@ export function CaptureCard({
             ))}
           </ul>
         )}
-        {description && (
+        {capture.description && (
           <p className="text-xs leading-relaxed text-pretty text-neutral-500">
-            {description}
+            {capture.description}
           </p>
         )}
       </div>

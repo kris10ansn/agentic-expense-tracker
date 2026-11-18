@@ -3,6 +3,11 @@ import { useCallback, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { QueryError } from "../components/QueryError";
 import {
+  CaptureCard,
+  type CaptureCardData,
+  type CaptureNotice,
+} from "../features/capture/CaptureCard";
+import {
   CaptureDock,
   type CaptureDockData,
 } from "../features/capture/CaptureDock";
@@ -10,11 +15,6 @@ import {
   useSendingCaptures,
   useStartCapture,
 } from "../features/capture/mutations";
-import {
-  CaptureCard,
-  type CaptureNotice,
-  PendingCapture,
-} from "../features/capture/PendingCapture";
 import { ExpenseList } from "../features/expenses/ExpenseList";
 import { ExpenseListSkeleton } from "../features/expenses/ExpenseSkeletons";
 import { useWorkspace } from "../features/workspace/WorkspaceProvider";
@@ -46,13 +46,27 @@ export function HomePage() {
   const pending = pendingCaptures.data ?? [];
   const pendingIds = new Set(pending.map((capture) => capture.id));
 
-  const captures = [
-    ...pending.map((c) => ({ ...c, captureId: c.id })),
+  const captures: CaptureCardData[] = [
+    ...Object.values(notices),
+    ...pending
+      .filter((capture) => notices[capture.id] === undefined)
+      .map<CaptureCardData>(({ id, description }) => ({
+        id,
+        description,
+        kind: "processing",
+      })),
     ...sendingCaptures
       .filter((capture) => capture !== undefined)
-      .filter((capture) => !pendingIds.has(capture.id))
-      .map((capture) => ({ ...capture, captureId: null })),
-  ].filter((capture) => notices[capture.id] === undefined);
+      .filter(
+        (capture) =>
+          !pendingIds.has(capture.id) && notices[capture.id] === undefined,
+      )
+      .map<CaptureCardData>(({ id, description }) => ({
+        id,
+        description,
+        kind: "sending",
+      })),
+  ];
 
   const handleSubmit = useCallback(
     async ({ description, files, collectionId }: CaptureDockData) => {
@@ -77,22 +91,13 @@ export function HomePage() {
           aria-label="Recent expenses"
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
-          {Object.values(notices).map((notice) => (
-            <CaptureCard
-              key={notice.id}
-              state={notice.state}
-              description={notice.description}
-              files={filesRecord[notice.id] ?? []}
-              onDismiss={() => dismissNotice(notice.id)}
-            />
-          ))}
           {captures.map((capture) => (
-            <PendingCapture
+            <CaptureCard
               key={capture.id}
-              captureId={capture.captureId}
-              description={capture.description}
+              capture={capture}
               files={filesRecord[capture.id] ?? []}
               onAttention={handleAttention}
+              onDismiss={dismissNotice}
             />
           ))}
           <RecentExpenses />

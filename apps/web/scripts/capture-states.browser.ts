@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import type { CaptureEvent } from "@ai-expenses/api";
-import { chromium } from "playwright";
+import { chromium, type Response } from "playwright";
 import superjson from "superjson";
 
 const origin = process.env.WEB_URL ?? "http://127.0.0.1:4173";
@@ -84,12 +84,43 @@ try {
     let finished = false;
     let signedOut = false;
     let activeReads = 0;
+    let watchRequests = 0;
+    const testTransition = scenario === "failed" || scenario === "review";
+    let accepted = !testTransition;
+    let currentCapture = capture;
+    const acceptUpload = Promise.withResolvers<void>();
+    const sendOutcome = Promise.withResolvers<void>();
+    const watchStarted = Promise.withResolvers<void>();
     await page.route("**/api/auth/get-session**", (route) =>
       route.fulfill({ json: signedOut ? null : session }),
     );
-    await page.route("**/trpc/**", (route) => {
+    await page.route("**/trpc/**", async (route) => {
       const url = new URL(route.request().url());
+      if (url.pathname === "/trpc/captures.start") {
+        const requestBody = route.request().postDataBuffer();
+        assert.ok(requestBody, "Capture submission requires a multipart body");
+        const form = await new Request(route.request().url(), {
+          method: "POST",
+          headers: route.request().headers(),
+          body: new Uint8Array(requestBody),
+        }).formData();
+        const id = form.get("id");
+        if (typeof id !== "string") {
+          throw new Error("Missing capture ID");
+        }
+        currentCapture = { ...capture, id };
+        await acceptUpload.promise;
+        accepted = true;
+        return route.fulfill({
+          json: { result: { data: superjson.serialize(currentCapture) } },
+        });
+      }
       if (url.pathname === "/trpc/captures.watch") {
+        watchRequests++;
+        watchStarted.resolve();
+        if (testTransition) {
+          await sendOutcome.promise;
+        }
         if (scenario === "reconnecting") {
           return route.abort("failed");
         }
@@ -127,7 +158,24 @@ try {
           if (name === "captures.listActive") {
             activeReads++;
             return {
-              result: { data: superjson.serialize(finished ? [] : [capture]) },
+              result: {
+                data: superjson.serialize(
+                  accepted && !finished ? [currentCapture] : [],
+                ),
+              },
+            };
+          }
+          if (name === "collections.list") {
+            return {
+              result: {
+                data: superjson.serialize([
+                  {
+                    id: "00000000-0000-4000-8000-000000000002",
+                    title: "Meals",
+                    color: "#458a72",
+                  },
+                ]),
+              },
             };
           }
           return { result: { data: superjson.serialize([]) } };
@@ -141,14 +189,56 @@ try {
             response.url().includes("/trpc/captures.watch"),
           )
         : undefined;
-    const activeRefetch =
-      scenario === "failed" || scenario === "review"
-        ? page.waitForResponse(
-            (response) =>
-              response.url().includes("captures.listActive") && activeReads > 1,
-          )
-        : undefined;
+    let activeRefetch: Promise<Response> | undefined;
     await page.goto(origin);
+    const captureCard = page
+      .getByRole("status")
+      .filter({ hasText: capture.description });
+    if (testTransition) {
+      await page.getByLabel("Describe an expense").fill(capture.description);
+      await page
+        .getByRole("button", { name: "Choose from gallery" })
+        .locator("input")
+        .setInputFiles({
+          name: "receipt.png",
+          mimeType: "image/png",
+          buffer: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        });
+      await page.getByRole("button", { name: "Add described expense" }).click();
+      await captureCard.getByText("Sending data...", { exact: true }).waitFor();
+      await captureCard.evaluate((element) =>
+        element.setAttribute("data-original-card", "true"),
+      );
+      await captureCard
+        .getByRole("img", { name: "receipt.png" })
+        .evaluate((element) =>
+          element.setAttribute("data-original-preview", "true"),
+        );
+      const previewUrl = await captureCard.getByRole("img").getAttribute("src");
+      assert.ok(previewUrl?.startsWith("blob:"));
+      await captureCard.evaluate(
+        (element, url) => element.setAttribute("data-original-url", url ?? ""),
+        previewUrl,
+      );
+      acceptUpload.resolve();
+      await watchStarted.promise;
+      await captureCard
+        .getByText("Connecting to progress updates...", { exact: true })
+        .waitFor();
+      assert.equal(
+        await captureCard.getAttribute("data-original-card"),
+        "true",
+        "Upload acceptance must preserve the card",
+      );
+      activeRefetch = page.waitForResponse(
+        (response) =>
+          response.url().includes("captures.listActive") && finished,
+      );
+      sendOutcome.resolve();
+    }
     if (scenario === "unauthorized") {
       await page.waitForURL(`${origin}/login`);
     } else if (scenario === "complete") {
@@ -195,6 +285,26 @@ try {
         const response = await activeRefetch;
         await response?.finished();
         await card.waitFor();
+        assert.equal(
+          await card.getAttribute("data-original-card"),
+          "true",
+          "Terminal state must preserve the card DOM node",
+        );
+        assert.equal(
+          await card.getByRole("img").getAttribute("data-original-preview"),
+          "true",
+          "Terminal state must preserve the image DOM node",
+        );
+        assert.equal(
+          await card.getByRole("img").getAttribute("src"),
+          await card.getAttribute("data-original-url"),
+          "Terminal state must retain the preview URL",
+        );
+        assert.equal(
+          watchRequests,
+          1,
+          "Terminal notices must not restart the subscription",
+        );
         assert.ok(
           activeReads >= 2,
           "Terminal notice must survive an empty active-list response",
