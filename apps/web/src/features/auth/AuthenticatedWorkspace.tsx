@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
-import { Button } from "../../components/inputs";
+import { type ReactNode, useEffect, useState } from "react";
+import { QueryError } from "../../components/QueryError";
 import { authClient, goToLogin } from "../../lib/auth";
 import { WorkspaceLayout } from "../workspace/WorkspaceLayout";
+import { SessionScreen } from "./SessionScreen";
 
-function UserWorkspace({ userId }: { userId: string }) {
+function UserWorkspace({
+  userId,
+  notice,
+}: {
+  userId: string;
+  notice: ReactNode;
+}) {
   const [initialUserId] = useState(userId);
   useEffect(() => {
     if (userId !== initialUserId) {
@@ -13,33 +20,43 @@ function UserWorkspace({ userId }: { userId: string }) {
   if (userId !== initialUserId) {
     return null;
   }
-  return <WorkspaceLayout />;
+  return <WorkspaceLayout notice={notice} />;
 }
 
 export function AuthenticatedWorkspace() {
-  const { data, isPending, error, refetch } = authClient.useSession();
+  const { data, isPending, isRefetching, error, refetch } =
+    authClient.useSession();
+  const sessionLost = error?.status === 401 || (!isPending && !error && !data);
+
   useEffect(() => {
-    if (!isPending && !error && !data) {
+    if (sessionLost) {
       goToLogin();
     }
-  }, [isPending, error, data]);
+  }, [sessionLost]);
 
-  if (error) {
-    return (
-      <main className="mx-auto max-w-lg p-6">
-        <p role="alert">Unable to check your session.</p>
-        <Button className="mt-4" onClick={() => void refetch()}>
-          Try again
-        </Button>
-      </main>
-    );
+  function retry() {
+    void refetch();
   }
-  if (!data) {
-    return (
-      <p role="status" className="p-6 text-sm text-slate-500">
-        Checking your session…
-      </p>
-    );
+
+  if (!data || sessionLost) {
+    if (error && !sessionLost) {
+      return <SessionScreen kind="error" onRetry={retry} />;
+    }
+    return <SessionScreen kind="loading" />;
   }
-  return <UserWorkspace userId={data.user.id} />;
+
+  return (
+    <UserWorkspace
+      userId={data.user.id}
+      notice={
+        error && (
+          <QueryError
+            message="We couldn't reconnect. Your unsaved changes are still here."
+            onRetry={retry}
+            retrying={isRefetching}
+          />
+        )
+      }
+    />
+  );
 }
