@@ -23,8 +23,8 @@ const captureEventSchema = z.union([
   z.object({
     capture: captureUpdateSchema.safeExtend({
       status: captureSchema.shape.status.extract(["failed"]),
+      errorMessage: captureSchema.shape.errorMessage.nonoptional(),
     }),
-    errorMessage: z.string(),
   }),
 ]);
 
@@ -62,7 +62,6 @@ export function initialCaptureEvent(capture: Capture): CaptureEvent {
     case "failed":
       return {
         capture: { ...capture, status },
-        errorMessage: "Extraction failed",
       };
   }
 }

@@ -5,7 +5,6 @@ import { QueryError } from "../components/QueryError";
 import {
   CaptureCard,
   type CaptureCardData,
-  type CaptureNotice,
 } from "../features/capture/CaptureCard";
 import {
   CaptureDock,
@@ -24,46 +23,26 @@ export function HomePage() {
   const { addExpense } = useWorkspace();
 
   const [filesRecord, setFilesRecord] = useState<Record<string, File[]>>({});
-  const [notices, setNotices] = useState<Record<string, CaptureNotice>>({});
-
-  const handleAttention = useCallback((notice: CaptureNotice) => {
-    setNotices((current) => ({ ...current, [notice.id]: notice }));
-  }, []);
-
-  const dismissNotice = useCallback((id: string) => {
-    setNotices((current) => {
-      const remaining = { ...current };
-      delete remaining[id];
-      return remaining;
-    });
-  }, []);
-
-  const pendingCaptures = useQuery(trpc.captures.listActive.queryOptions());
+  const visibleCaptures = useQuery(trpc.captures.listVisible.queryOptions());
   const sendingCaptures = useSendingCaptures();
 
   const startCapture = useStartCapture();
 
-  const pending = pendingCaptures.data ?? [];
-  const pendingIds = new Set(pending.map((capture) => capture.id));
+  const visible = visibleCaptures.data ?? [];
+  const visibleIds = new Set(visible.map((capture) => capture.id));
 
   const captures: CaptureCardData[] = [
-    ...Object.values(notices),
-    ...pending
-      .filter((capture) => notices[capture.id] === undefined)
-      .map<CaptureCardData>(({ id, description }) => ({
-        id,
-        description,
-        kind: "processing",
-      })),
+    ...visible.map<CaptureCardData>((capture) => ({
+      ...capture,
+      kind: "persisted",
+    })),
     ...sendingCaptures
       .filter((capture) => capture !== undefined)
-      .filter(
-        (capture) =>
-          !pendingIds.has(capture.id) && notices[capture.id] === undefined,
-      )
-      .map<CaptureCardData>(({ id, description }) => ({
+      .filter((capture) => !visibleIds.has(capture.id))
+      .map<CaptureCardData>(({ id, description, files }) => ({
         id,
         description,
+        fileNames: files.map((file) => file.name),
         kind: "sending",
       })),
   ];
@@ -91,13 +70,18 @@ export function HomePage() {
           aria-label="Recent expenses"
           className="min-h-0 flex-1 overflow-y-auto lg:order-last"
         >
+          {visibleCaptures.isError && (
+            <QueryError
+              message="Unable to load captures."
+              onRetry={() => void visibleCaptures.refetch()}
+              retrying={visibleCaptures.isFetching}
+            />
+          )}
           {captures.map((capture) => (
             <CaptureCard
               key={capture.id}
               capture={capture}
               files={filesRecord[capture.id] ?? []}
-              onAttention={handleAttention}
-              onDismiss={dismissNotice}
             />
           ))}
           <RecentExpenses />

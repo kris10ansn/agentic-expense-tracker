@@ -9,7 +9,7 @@ import {
   test,
 } from "bun:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
 import superjson from "superjson";
 import {
@@ -141,7 +141,7 @@ describe.skipIf(databaseUrl === undefined)(
       ]);
     });
 
-    test("starts a capture, streams progress and saved expenses, and removes it from active captures", async () => {
+    test("starts a capture, streams progress and saved expenses, and removes it from visible captures", async () => {
       const result =
         Promise.withResolvers<
           Awaited<ReturnType<typeof extraction.extractExpenses>>
@@ -154,7 +154,7 @@ describe.skipIf(databaseUrl === undefined)(
       form.set("collectionId", collectionId);
       const capture = await caller.start(form);
       expect(capture.id).toBe(id);
-      expect(await caller.listActive()).toContainEqual(capture);
+      expect(await caller.listVisible()).toContainEqual(capture);
       const watch = (await caller.watch(capture.id))[Symbol.asyncIterator]();
       expect(await watch.next()).toMatchObject({
         value: { capture: { status: "extracting" } },
@@ -173,7 +173,7 @@ describe.skipIf(databaseUrl === undefined)(
         },
       });
       expect(await watch.next()).toEqual({ done: true, value: undefined });
-      expect(await caller.listActive()).not.toContainEqual(capture);
+      expect(await caller.listVisible()).not.toContainEqual(capture);
       expect(
         captureEvents.emit(capture.id, { capture: { status: "saving" } }),
       ).toBe(false);
@@ -210,22 +210,25 @@ describe.skipIf(databaseUrl === undefined)(
         });
 
         expect(await watch.next()).toMatchObject({
-          value: { capture: { status: "failed" }, errorMessage },
+          value: { capture: { status: "failed", errorMessage } },
         });
         expect(await watch.next()).toEqual({ done: true, value: undefined });
         const [capture] = await db
           .select()
           .from(capturesTable)
           .where(eq(capturesTable.id, captureId));
-        expect(capture?.status).toBe("failed");
+        expect(capture).toMatchObject({
+          status: "failed",
+          errorMessage: expect.any(String),
+        });
         expect(
           await db
             .select()
             .from(expensesTable)
             .where(eq(expensesTable.captureId, captureId)),
         ).toEqual([]);
-        expect(await caller.listActive()).not.toContainEqual(
-          expect.objectContaining({ id: captureId }),
+        expect(await caller.listVisible()).toContainEqual(
+          expect.objectContaining({ id: captureId, errorMessage }),
         );
       },
     );
@@ -290,13 +293,15 @@ describe.skipIf(databaseUrl === undefined)(
         description: "Coffee",
         fileNames: [image.name],
         failures: null,
+        errorMessage: null,
+        dismissedAt: null,
       };
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         result: { data: superjson.serialize(capture) },
       });
-      expect(await caller.listActive()).toContainEqual(capture);
+      expect(await caller.listVisible()).toContainEqual(capture);
       expect(extract).toHaveBeenCalledWith({
         id,
         collectionId,
@@ -336,6 +341,127 @@ describe.skipIf(databaseUrl === undefined)(
       ).toMatchObject([{ ...expenses[0], captureId: id, collectionId }]);
     });
 
+    test.each(["failed", "review"])(
+      "keeps %s captures across connections until an idempotent dismissal",
+      async (outcome) => {
+        const captureId = await createCapture();
+        const failures = [
+          {
+            partialExpense: { title: "Tea" },
+            sourceText: "Tea",
+            reason: "Missing amount",
+            suggestions: [],
+          },
+        ];
+        const extract = spyOn(extraction, "extractExpenses");
+        if (outcome === "failed") {
+          extract.mockRejectedValue(new Error("AI unavailable"));
+        } else {
+          extract.mockResolvedValue({ ...extracted, failures });
+        }
+
+        await processCapture({
+          userId: testUserId,
+          captureId,
+          input: { ...input, id: captureId },
+          db,
+        });
+        const reconnectedDb = createDatabase(url.href);
+        try {
+          const reconnected = capturesRouter.createCaller(
+            authenticatedContext(reconnectedDb),
+          );
+          const notice = (await reconnected.listVisible()).find(
+            (capture) => capture.id === captureId,
+          );
+          expect(notice).toMatchObject({
+            id: captureId,
+            description: "Coffee",
+            dismissedAt: null,
+            ...(outcome === "failed"
+              ? { status: "failed", errorMessage: "AI unavailable" }
+              : { status: "complete", failures }),
+          });
+          const expensesBefore = await db
+            .select()
+            .from(expensesTable)
+            .where(eq(expensesTable.captureId, captureId));
+
+          expect(await reconnected.dismiss(captureId)).toEqual({
+            id: captureId,
+          });
+          const dismissed = await db
+            .select()
+            .from(capturesTable)
+            .where(eq(capturesTable.id, captureId));
+          expect(dismissed[0]?.dismissedAt).toBeInstanceOf(Date);
+          expect(await caller.dismiss(captureId)).toEqual({ id: captureId });
+          expect(await caller.listVisible()).not.toContainEqual(
+            expect.objectContaining({ id: captureId }),
+          );
+          expect(await reconnected.listVisible()).not.toContainEqual(
+            expect.objectContaining({ id: captureId }),
+          );
+          expect(
+            await db
+              .select()
+              .from(capturesTable)
+              .where(eq(capturesTable.id, captureId)),
+          ).toEqual(dismissed);
+          expect(
+            await db
+              .select()
+              .from(expensesTable)
+              .where(eq(expensesTable.captureId, captureId)),
+          ).toEqual(expensesBefore);
+        } finally {
+          await reconnectedDb.$client.close();
+        }
+      },
+    );
+
+    test("keeps legacy failures, hides clean successes, and rejects dismissing active or missing captures", async () => {
+      const id = await createCapture();
+      await expect(caller.dismiss(id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(caller.dismiss(crypto.randomUUID())).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await db
+        .update(capturesTable)
+        .set({ status: "saving" })
+        .where(eq(capturesTable.id, id));
+      await expect(caller.dismiss(id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect(await caller.listVisible()).toContainEqual(
+        expect.objectContaining({ id, status: "saving", dismissedAt: null }),
+      );
+
+      for (const failures of [null, []]) {
+        await db
+          .update(capturesTable)
+          .set({ status: "complete", failures })
+          .where(eq(capturesTable.id, id));
+        expect(await caller.listVisible()).not.toContainEqual(
+          expect.objectContaining({ id }),
+        );
+        await expect(caller.dismiss(id)).rejects.toMatchObject({
+          code: "NOT_FOUND",
+        });
+      }
+
+      await db
+        .update(capturesTable)
+        .set({ status: "failed" })
+        .where(eq(capturesTable.id, id));
+      expect(await caller.listVisible()).toContainEqual(
+        expect.objectContaining({ id, errorMessage: null }),
+      );
+      await caller.dismiss(id);
+    });
+
     test("persists extraction errors, publishes their message, and ends the subscription", async () => {
       const captureId = await createCapture();
       spyOn(extraction, "extractExpenses").mockRejectedValue(
@@ -351,8 +477,7 @@ describe.skipIf(databaseUrl === undefined)(
       });
       expect(await watch.next()).toMatchObject({
         value: {
-          capture: { status: "failed" },
-          errorMessage: "AI unavailable",
+          capture: { status: "failed", errorMessage: "AI unavailable" },
         },
       });
       expect(await watch.next()).toEqual({ done: true, value: undefined });
@@ -360,20 +485,76 @@ describe.skipIf(databaseUrl === undefined)(
         .select()
         .from(capturesTable)
         .where(eq(capturesTable.id, captureId));
-      expect(capture?.status).toBe("failed");
+      expect(capture).toMatchObject({
+        status: "failed",
+        errorMessage: expect.any(String),
+      });
       const reconnected = (await caller.watch(captureId))[
         Symbol.asyncIterator
       ]();
       expect(await reconnected.next()).toMatchObject({
         value: {
-          capture: { status: "failed" },
-          errorMessage: "Extraction failed",
+          capture: { status: "failed", errorMessage: "AI unavailable" },
         },
       });
       expect(await reconnected.next()).toEqual({
         done: true,
         value: undefined,
       });
+    });
+
+    test("visibility also handles failures stored as native JSON arrays", async () => {
+      const id = await createCapture();
+      const failures = [
+        {
+          partialExpense: { title: "Coffee" },
+          sourceText: "Coffee",
+          reason: "Missing amount",
+          suggestions: [],
+        },
+      ];
+      for (const entries of [[], failures]) {
+        await db
+          .update(capturesTable)
+          .set({
+            status: "complete",
+            failures: sql`${JSON.stringify(entries)}::text::jsonb`,
+          })
+          .where(eq(capturesTable.id, id));
+        const visible = (await caller.listVisible()).some(
+          (capture) => capture.id === id,
+        );
+        expect(visible).toBe(entries.length > 0);
+      }
+      await caller.dismiss(id);
+      expect(await caller.listVisible()).not.toContainEqual(
+        expect.objectContaining({ id }),
+      );
+    });
+
+    test("the migration preserves outcomes when its columns already exist", async () => {
+      const id = await createCapture();
+      await db
+        .update(capturesTable)
+        .set({ status: "failed", errorMessage: "Saved failure" })
+        .where(eq(capturesTable.id, id));
+      await caller.dismiss(id);
+      const before = await db
+        .select()
+        .from(capturesTable)
+        .where(eq(capturesTable.id, id));
+      const migration = await Bun.file(
+        new URL(
+          "../../drizzle/0005_perpetual_king_bedlam.sql",
+          import.meta.url,
+        ),
+      ).text();
+      for (const statement of migration.split("--> statement-breakpoint")) {
+        await db.$client.unsafe(statement);
+      }
+      expect(
+        await db.select().from(capturesTable).where(eq(capturesTable.id, id)),
+      ).toEqual(before);
     });
 
     test("reports expense persistence failures as failed captures", async () => {
@@ -389,7 +570,10 @@ describe.skipIf(databaseUrl === undefined)(
         .select()
         .from(capturesTable)
         .where(eq(capturesTable.id, captureId));
-      expect(capture?.status).toBe("failed");
+      expect(capture).toMatchObject({
+        status: "failed",
+        errorMessage: expect.any(String),
+      });
       expect(
         await db
           .select()

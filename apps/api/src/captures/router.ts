@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import z from "zod";
 import { requireOwnedCollection } from "../collections/access";
 import type { Database } from "../db";
@@ -34,8 +34,17 @@ async function getCapture(
   return capture;
 }
 
+const needsAttention = or(
+  eq(capturesTable.status, "failed"),
+  and(
+    eq(capturesTable.status, "complete"),
+    // Bun SQL can encode the array as a JSON string. Decode either storage form.
+    sql`jsonb_array_length((${capturesTable.failures} #>> '{}')::jsonb) > 0`,
+  ),
+);
+
 export const capturesRouter = t.router({
-  listActive: protectedProcedure
+  listVisible: protectedProcedure
     .output(z.array(captureSchema))
     .query(async ({ ctx }) => {
       return ctx.db
@@ -44,9 +53,40 @@ export const capturesRouter = t.router({
         .where(
           and(
             eq(capturesTable.userId, ctx.user.id),
-            inArray(capturesTable.status, ["extracting", "saving"]),
+            isNull(capturesTable.dismissedAt),
+            or(
+              inArray(capturesTable.status, ["extracting", "saving"]),
+              needsAttention,
+            ),
           ),
         );
+    }),
+
+  dismiss: protectedProcedure
+    .input(z.uuid())
+    .mutation(async ({ ctx, input }) => {
+      const [dismissed] = await ctx.db
+        .update(capturesTable)
+        .set({
+          dismissedAt: sql`coalesce(${capturesTable.dismissedAt}, now())`,
+        })
+        .where(
+          and(
+            eq(capturesTable.id, input),
+            eq(capturesTable.userId, ctx.user.id),
+            needsAttention,
+          ),
+        )
+        .returning({ id: capturesTable.id });
+
+      if (dismissed === undefined) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No dismissible capture found.",
+        });
+      }
+
+      return dismissed;
     }),
 
   start: protectedProcedure

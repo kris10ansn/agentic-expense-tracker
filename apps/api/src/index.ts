@@ -10,7 +10,10 @@ const db = createDatabase(config.DATABASE_URL);
 
 const interruptedCaptures = await db
   .update(capturesTable)
-  .set({ status: "failed" })
+  .set({
+    status: "failed",
+    errorMessage: "Processing was interrupted. Please try again.",
+  })
   .where(inArray(capturesTable.status, ["extracting", "saving"]))
   .returning({ id: capturesTable.id });
 

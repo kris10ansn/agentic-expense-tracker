@@ -1,49 +1,29 @@
-import { skipToken } from "@tanstack/react-query";
 import { TriangleAlert } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { CaptureCardHeader } from "./CaptureCardHeader";
 import { CaptureCardOutcome } from "./CaptureCardOutcome";
 import { CaptureFilePreview } from "./CaptureFilePreview";
-import {
-  type CaptureAttentionState,
-  useCaptureProgress,
-} from "./useCaptureProgress";
+import { useDismissCapture } from "./mutations";
+import { type Capture, useCaptureProgress } from "./useCaptureProgress";
 
-export type CaptureCardData = {
-  id: string;
-  description: string;
-} & (
-  | { kind: "sending" | "processing" }
-  | { kind: "notice"; state: CaptureAttentionState }
-);
-
-export type CaptureNotice = Extract<CaptureCardData, { kind: "notice" }>;
+export type CaptureCardData =
+  | (Pick<Capture, "id" | "description" | "fileNames"> & { kind: "sending" })
+  | (Capture & { kind: "persisted" });
 
 export function CaptureCard({
   capture,
   files,
   className,
-  onAttention,
-  onDismiss,
 }: {
   capture: CaptureCardData;
   files: File[];
   className?: string;
-  onAttention: (notice: CaptureNotice) => void;
-  onDismiss: (id: string) => void;
 }) {
-  const progress = useCaptureProgress(
-    capture.kind === "processing" ? capture.id : skipToken,
-    (state) => {
-      onAttention({
-        id: capture.id,
-        description: capture.description,
-        kind: "notice",
-        state,
-      });
-    },
+  const state = useCaptureProgress(
+    capture.kind === "persisted" ? capture : undefined,
   );
-  const state = capture.kind === "notice" ? capture.state : progress;
+  const dismissal = useDismissCapture();
+  const dismiss = () => dismissal.mutate(capture.id);
   const reviewCount = state.kind === "needs-review" ? state.failures.length : 0;
 
   return (
@@ -65,6 +45,11 @@ export function CaptureCard({
             ))}
           </ul>
         )}
+        {files.length === 0 && capture.fileNames.length > 0 && (
+          <p className="text-xs wrap-anywhere text-neutral-600">
+            {capture.fileNames.join(", ")}
+          </p>
+        )}
         {capture.description && (
           <p className="text-xs leading-relaxed text-pretty wrap-anywhere text-neutral-500">
             {capture.description}
@@ -84,10 +69,18 @@ export function CaptureCard({
       </div>
       <CaptureCardOutcome
         state={state}
+        dismissing={dismissal.isPending}
         onDismiss={
-          capture.kind === "notice" ? () => onDismiss(capture.id) : undefined
+          state.kind === "failed" || state.kind === "needs-review"
+            ? dismiss
+            : undefined
         }
       />
+      {dismissal.isError && (
+        <p role="alert" className="px-3.5 py-2 text-xs text-red-700">
+          Unable to dismiss this capture. Please try again.
+        </p>
+      )}
     </div>
   );
 }

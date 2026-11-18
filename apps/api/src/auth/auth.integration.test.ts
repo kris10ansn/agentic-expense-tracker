@@ -163,7 +163,7 @@ describe.skipIf(!databaseUrl)(
       ).toBe(404);
       expect((await rpc("expenses.list", "")).status).toBe(401);
       expect((await rpc("collections.list", "")).status).toBe(401);
-      expect((await rpc("captures.listActive", "")).status).toBe(401);
+      expect((await rpc("captures.listVisible", "")).status).toBe(401);
       const wrongPassword = await authRequest("sign-in/email", {
         email: "alice@example.com",
         password: "wrong-password",
@@ -325,10 +325,34 @@ describe.skipIf(!databaseUrl)(
       });
       expect(
         await data(
-          await rpc("captures.listActive", bob),
+          await rpc("captures.listVisible", bob),
           z.array(captureSchema),
         ),
       ).toEqual([]);
+      await db
+        .update(capturesTable)
+        .set({ status: "failed", errorMessage: "Private failure" })
+        .where(eq(capturesTable.id, captureId));
+      expect((await rpc("captures.dismiss", bob, captureId, true)).status).toBe(
+        404,
+      );
+      expect((await rpc("captures.dismiss", "", captureId, true)).status).toBe(
+        401,
+      );
+      expect(
+        await data(
+          await rpc("captures.listVisible", bob),
+          z.array(captureSchema),
+        ),
+      ).toEqual([]);
+      expect(
+        await data(
+          await rpc("captures.listVisible", alice),
+          z.array(captureSchema),
+        ),
+      ).toContainEqual(
+        expect.objectContaining({ id: captureId, dismissedAt: null }),
+      );
       expect(
         (await rpc("expenses.create", bob, { ...purchase, captureId }, true))
           .status,

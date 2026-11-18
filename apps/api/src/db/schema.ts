@@ -122,6 +122,8 @@ export const capturesTable = pgTable(
     description: text().notNull(),
     fileNames: text().array().notNull(),
     failures: jsonb().$type<z.infer<typeof modelFailuresSchema>>(),
+    errorMessage: text(),
+    dismissedAt: timestamp({ withTimezone: true }),
   },
   (table) => [index("captures_user_status_idx").on(table.userId, table.status)],
 );

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import type { CaptureEvent } from "@ai-expenses/api";
-import { chromium, type Response } from "playwright";
+import { chromium, type Response, type Route } from "playwright";
 import superjson from "superjson";
+import type { Capture } from "../src/features/capture/useCaptureProgress";
 
 const origin = process.env.WEB_URL ?? "http://127.0.0.1:4173";
 const screenshots = process.env.SCREENSHOT_DIR;
@@ -35,11 +36,12 @@ const capture = {
   status: "extracting",
   fileNames: [],
   failures: null,
-};
+  errorMessage: null,
+  dismissedAt: null,
+} satisfies Capture;
 const outcomes = {
   failed: {
-    capture: { status: "failed" },
-    errorMessage: "AI unavailable",
+    capture: { status: "failed", errorMessage: "AI unavailable" },
   },
   review: {
     capture: {
@@ -87,14 +89,17 @@ try {
     let watchRequests = 0;
     const testTransition = scenario === "failed" || scenario === "review";
     let accepted = !testTransition;
-    let currentCapture = capture;
+    let currentCapture: Capture = capture;
+    let dismissed = false;
+    let dismissalAttempts = 0;
+    const allowDismissal = Promise.withResolvers<void>();
     const acceptUpload = Promise.withResolvers<void>();
     const sendOutcome = Promise.withResolvers<void>();
     const watchStarted = Promise.withResolvers<void>();
     await page.route("**/api/auth/get-session**", (route) =>
       route.fulfill({ json: signedOut ? null : session }),
     );
-    await page.route("**/trpc/**", async (route) => {
+    const handleRpc = async (route: Route) => {
       const url = new URL(route.request().url());
       if (url.pathname === "/trpc/captures.start") {
         const requestBody = route.request().postDataBuffer();
@@ -108,7 +113,14 @@ try {
         if (typeof id !== "string") {
           throw new Error("Missing capture ID");
         }
-        currentCapture = { ...capture, id };
+        currentCapture = {
+          ...capture,
+          id,
+          fileNames: form
+            .getAll("files")
+            .filter((file) => file instanceof File)
+            .map((file) => file.name),
+        };
         await acceptUpload.promise;
         accepted = true;
         return route.fulfill({
@@ -145,43 +157,74 @@ try {
             scenario === "complete"
           ) {
             finished = true;
+            currentCapture = {
+              ...currentCapture,
+              ...outcomes[scenario].capture,
+            };
             body += `data: ${superjson.stringify(outcomes[scenario])}\n\n`;
           }
           body += "event: return\ndata: \n\n";
         }
         return route.fulfill({ contentType: "text/event-stream", body });
       }
-      const results = url.pathname
-        .slice("/trpc/".length)
-        .split(",")
-        .map((name) => {
-          if (name === "captures.listActive") {
-            activeReads++;
-            return {
-              result: {
-                data: superjson.serialize(
-                  accepted && !finished ? [currentCapture] : [],
-                ),
-              },
-            };
-          }
-          if (name === "collections.list") {
-            return {
-              result: {
-                data: superjson.serialize([
-                  {
-                    id: "00000000-0000-4000-8000-000000000002",
-                    title: "Meals",
-                    color: "#458a72",
-                  },
-                ]),
-              },
-            };
-          }
-          return { result: { data: superjson.serialize([]) } };
-        });
+      const results = await Promise.all(
+        url.pathname
+          .slice("/trpc/".length)
+          .split(",")
+          .map(async (name) => {
+            if (name === "captures.dismiss") {
+              dismissalAttempts++;
+              if (dismissalAttempts === 1) {
+                return {
+                  error: superjson.serialize({
+                    code: -32603,
+                    message: "Dismissal unavailable",
+                    data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
+                  }),
+                };
+              }
+              await allowDismissal.promise;
+              dismissed = true;
+              currentCapture = { ...currentCapture, dismissedAt: new Date() };
+              return {
+                result: {
+                  data: superjson.serialize({ id: currentCapture.id }),
+                },
+              };
+            }
+            if (name === "captures.listVisible") {
+              activeReads++;
+              return {
+                result: {
+                  data: superjson.serialize(
+                    accepted &&
+                      !dismissed &&
+                      !(finished && scenario === "complete")
+                      ? [currentCapture]
+                      : [],
+                  ),
+                },
+              };
+            }
+            if (name === "collections.list") {
+              return {
+                result: {
+                  data: superjson.serialize([
+                    {
+                      id: "00000000-0000-4000-8000-000000000002",
+                      title: "Meals",
+                      color: "#458a72",
+                    },
+                  ]),
+                },
+              };
+            }
+            return { result: { data: superjson.serialize([]) } };
+          }),
+      );
       return route.fulfill({ json: results });
-    });
+    };
+    await page.route("**/trpc/**", handleRpc);
 
     const watchResponse =
       scenario === "complete"
@@ -235,7 +278,7 @@ try {
       );
       activeRefetch = page.waitForResponse(
         (response) =>
-          response.url().includes("captures.listActive") && finished,
+          response.url().includes("captures.listVisible") && finished,
       );
       sendOutcome.resolve();
     }
@@ -343,7 +386,7 @@ try {
         );
         assert.ok(
           activeReads >= 2,
-          "Terminal notice must survive an empty active-list response",
+          "Terminal notice must survive a visible-list refetch",
         );
         if (screenshots) {
           await page.screenshot({ path: `${screenshots}/${scenario}.png` });
@@ -352,8 +395,79 @@ try {
             path: `${screenshots}/${scenario}-desktop.png`,
           });
         }
-        await card.getByRole("button", { name: "Dismiss" }).click();
-        await card.waitFor({ state: "detached" });
+        await page.reload();
+        await card.waitFor();
+        await card.getByText("receipt.png", { exact: true }).waitFor();
+        assert.equal(await card.getByRole("img").count(), 0);
+        assert.equal(
+          watchRequests,
+          1,
+          "Persisted notices must not open a subscription after reload",
+        );
+
+        const freshContext = await browser.newContext();
+        try {
+          const freshPage = await freshContext.newPage();
+          freshPage.setDefaultTimeout(5000);
+          freshPage.on("pageerror", (error) => errors.push(error.message));
+          await freshPage.route("**/api/auth/get-session**", (route) =>
+            route.fulfill({ json: session }),
+          );
+          await freshPage.route("**/trpc/**", handleRpc);
+          await freshPage.goto(origin);
+          const freshCard = freshPage
+            .getByRole("status")
+            .filter({ hasText: title });
+          await freshCard.waitFor();
+          await freshCard.getByText("receipt.png", { exact: true }).waitFor();
+          if (scenario === "review") {
+            await freshCard
+              .getByRole("button", { name: "Review 1 item" })
+              .click();
+          }
+          await freshCard
+            .getByText(
+              scenario === "failed" ? "AI unavailable" : "Missing amount",
+              { exact: true },
+            )
+            .waitFor();
+          await freshCard
+            .getByRole("button", { name: "Dismiss", exact: true })
+            .click();
+          await freshCard
+            .getByRole("alert")
+            .getByText("Unable to dismiss this capture. Please try again.")
+            .waitFor();
+          assert.equal(dismissed, false);
+          await freshCard
+            .getByRole("button", { name: "Dismiss", exact: true })
+            .click();
+          const dismissing = freshCard.getByRole("button", {
+            name: "Dismissing...",
+            exact: true,
+          });
+          await dismissing.waitFor();
+          assert.equal(await dismissing.isDisabled(), true);
+          allowDismissal.resolve();
+          await freshCard.waitFor({ state: "detached" });
+          assert.equal(dismissalAttempts, 2);
+          await freshPage.reload();
+          await freshPage
+            .getByText("Your expenses will appear here.", { exact: true })
+            .waitFor();
+          assert.equal(await freshCard.count(), 0);
+          await page.reload();
+          await page
+            .getByText("Your expenses will appear here.", { exact: true })
+            .waitFor();
+          assert.equal(
+            await card.count(),
+            0,
+            "Dismissal must persist across sessions",
+          );
+        } finally {
+          await freshContext.close();
+        }
       } else if (screenshots) {
         await page.screenshot({ path: `${screenshots}/${scenario}.png` });
       }

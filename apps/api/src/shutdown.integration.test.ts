@@ -30,6 +30,8 @@ describe.skipIf(databaseUrl === undefined)(
       description: "Coffee",
       fileNames: [],
       failures: null,
+      errorMessage: null,
+      dismissedAt: null,
     }));
 
     beforeAll(async () => {
@@ -93,6 +95,10 @@ describe.skipIf(databaseUrl === undefined)(
           expect.arrayContaining(
             captures.map((capture) => ({
               ...capture,
+              errorMessage:
+                capture.status === "extracting" || capture.status === "saving"
+                  ? "Processing was interrupted. Please try again."
+                  : null,
               status:
                 capture.status === "extracting" || capture.status === "saving"
                   ? "failed"

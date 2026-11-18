@@ -38,11 +38,13 @@ export async function processCapture({
       await publishCaptureUpdate(
         captureId,
         {
-          capture: { status: "failed" },
-          errorMessage:
-            "kind" in extraction
-              ? extraction.reason
-              : "No expenses could be recognized.",
+          capture: {
+            status: "failed",
+            errorMessage:
+              "kind" in extraction
+                ? extraction.reason
+                : "No expenses could be recognized.",
+          },
         },
         db,
       );
@@ -89,8 +91,8 @@ export async function processCapture({
       {
         capture: {
           status: "failed",
+          errorMessage,
         },
-        errorMessage,
       },
       db,
     );

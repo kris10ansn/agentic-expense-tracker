@@ -9,7 +9,7 @@ import { useState } from "react";
 import { handleAuthenticationError } from "../../lib/auth";
 import { type TRPC, trpc } from "../../trpc";
 
-export type Capture = inferOutput<TRPC["captures"]["listActive"]>[number];
+export type Capture = inferOutput<TRPC["captures"]["listVisible"]>[number];
 
 export type CaptureCardState =
   | { kind: "sending" | "connecting" | "extracting" | "saving" | "complete" }
@@ -17,28 +17,26 @@ export type CaptureCardState =
   | { kind: "failed"; message: string }
   | { kind: "needs-review"; failures: NonNullable<Capture["failures"]> };
 
-export type CaptureAttentionState = Extract<
-  CaptureCardState,
-  { kind: "failed" | "needs-review" }
->;
-
 export function getCaptureState({
-  event,
+  capture,
   sending,
   connectionStatus,
   connectionError,
 }: {
-  event: CaptureEvent | undefined;
+  capture: CaptureEvent["capture"] | undefined;
   sending: boolean;
   connectionStatus: ReturnType<typeof useSubscription>["status"];
   connectionError: boolean;
 }): CaptureCardState {
-  if (event && "errorMessage" in event) {
-    return { kind: "failed", message: event.errorMessage };
+  if (capture?.status === "failed") {
+    return {
+      kind: "failed",
+      message: capture.errorMessage ?? "Extraction failed",
+    };
   }
 
-  if (event?.capture.status === "complete") {
-    const failures = event.capture.failures ?? [];
+  if (capture?.status === "complete") {
+    const failures = capture.failures ?? [];
     if (failures.length > 0) {
       return { kind: "needs-review", failures };
     }
@@ -53,16 +51,16 @@ export function getCaptureState({
     connectionError ||
     connectionStatus === "error" ||
     connectionStatus === "idle" ||
-    (connectionStatus === "connecting" && event !== undefined)
+    (connectionStatus === "connecting" && capture !== undefined)
   ) {
     return { kind: "disconnected" };
   }
 
-  if (!event) {
+  if (!capture) {
     return { kind: "connecting" };
   }
 
-  return { kind: event.capture.status };
+  return { kind: capture.status };
 }
 
 export function applyCaptureEvent(
@@ -95,19 +93,38 @@ export function applyCaptureEvent(
 
   void queryClient.invalidateQueries({ queryKey: expensesKey });
 
-  const activeCapturesKey = trpc.captures.listActive.queryKey();
-  queryClient.setQueryData(activeCapturesKey, (captures) =>
-    captures?.filter((capture) => capture.id !== captureId),
+  const capturesKey = trpc.captures.listVisible.queryKey();
+  const cleanSuccess =
+    event.capture.status === "complete" && !event.capture.failures?.length;
+  queryClient.setQueryData(capturesKey, (captures) =>
+    captures?.flatMap((capture) => {
+      if (capture.id !== captureId) {
+        return [capture];
+      }
+
+      if (cleanSuccess) {
+        return [];
+      }
+
+      return [
+        {
+          ...capture,
+          status: event.capture.status,
+          failures: event.capture.failures ?? capture.failures,
+          errorMessage: event.capture.errorMessage ?? capture.errorMessage,
+        },
+      ];
+    }),
   );
-  void queryClient.invalidateQueries({ queryKey: activeCapturesKey });
+  void queryClient.invalidateQueries({ queryKey: capturesKey });
 }
 
-export function useCaptureProgress(
-  captureId: string | typeof skipToken,
-  onAttention: (state: CaptureAttentionState) => void,
-) {
+export function useCaptureProgress(capture: Capture | undefined) {
   const queryClient = useQueryClient();
   const [lastEvent, setLastEvent] = useState<CaptureEvent>();
+  const terminal =
+    capture?.status === "complete" || capture?.status === "failed";
+  const captureId = capture && !terminal ? capture.id : skipToken;
   const subscription = useSubscription(
     trpc.captures.watch.subscriptionOptions(captureId, {
       onError: handleAuthenticationError,
@@ -116,24 +133,14 @@ export function useCaptureProgress(
 
         setLastEvent(event);
 
-        const state = getCaptureState({
-          event,
-          sending: false,
-          connectionStatus: "pending",
-          connectionError: false,
-        });
-
-        if (state.kind === "failed" || state.kind === "needs-review") {
-          onAttention(state);
-        }
         applyCaptureEvent(queryClient, captureId, event);
       },
     }),
   );
 
   return getCaptureState({
-    event: lastEvent,
-    sending: captureId === skipToken,
+    capture: terminal ? capture : lastEvent?.capture,
+    sending: capture === undefined,
     connectionStatus: subscription.status,
     connectionError: subscription.error !== null,
   });
