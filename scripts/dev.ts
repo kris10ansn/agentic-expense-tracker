@@ -26,6 +26,7 @@ const env = { ...process.env };
 
 if (ports.data["web-port"] !== undefined) {
   env.WEB_PORT = String(ports.data["web-port"]);
+  env.BETTER_AUTH_URL = `http://localhost:${ports.data["web-port"]}`;
 }
 
 if (ports.data["api-port"] !== undefined) {

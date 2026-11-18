@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Database } from "../db";
-import { capturesTable, expensesTable } from "../db/schema";
+import { capturesTable, expenseSchema, expensesTable } from "../db/schema";
 import { extractExpenses } from "../expenses/extract";
 import type { ExpenseInput } from "../expenses/input";
 import { type CaptureEvent, captureEvents } from "./events";
@@ -20,10 +20,12 @@ async function publishCaptureUpdate(
 
 export async function processCapture({
   captureId,
+  userId,
   input,
   db,
 }: {
   captureId: string;
+  userId: string;
   input: ExpenseInput;
   db: Database;
 }) {
@@ -37,6 +39,7 @@ export async function processCapture({
 
     const inserts = extraction.expenses.map((expense) => ({
       ...expense,
+      userId,
       collectionId: input.collectionId,
       captureId,
     }));
@@ -53,7 +56,9 @@ export async function processCapture({
           status: "complete",
           failures: extraction.failures,
         },
-        createdExpenses,
+        createdExpenses: createdExpenses.map((expense) =>
+          expenseSchema.parse(expense),
+        ),
       },
       db,
     );

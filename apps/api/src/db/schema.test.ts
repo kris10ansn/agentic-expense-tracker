@@ -3,6 +3,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
 import { z } from "zod";
+import { authenticatedContext } from "../auth/test-context";
 import { expenseModelOutputSchema } from "../expenses/schema";
 import { publicProcedure, t } from "../trpc";
 import { createDatabase } from "./index";
@@ -207,7 +208,7 @@ test.each(["2026-11-13T12:00:00.000Z", "2026-07-13T12:00:00.000Z"])(
         endpoint: "/trpc",
         req: new Request(`http://localhost/trpc/${path}`),
         router,
-        createContext: () => ({ db }),
+        createContext: () => authenticatedContext(db),
       });
       expect(response.status).toBe(200);
       const body: unknown = await response.json();
@@ -237,7 +238,7 @@ test.each(["2026-11-13T12:00:00.000Z", "2026-07-13T12:00:00.000Z"])(
             body: superjson.stringify(updateInput),
           }),
           router,
-          createContext: () => ({ db }),
+          createContext: () => authenticatedContext(db),
         });
         expect(updated.status).toBe(200);
         expect(await updated.json()).toEqual({

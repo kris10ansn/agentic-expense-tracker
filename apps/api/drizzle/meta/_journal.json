@@ -29,6 +29,13 @@
       "when": 1794744127529,
       "tag": "0003_useful_colossus",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794914289365,
+      "tag": "0004_perpetual_jasper_sitwell",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,13 @@
 import { afterAll, afterEach, expect, mock, spyOn, test } from "bun:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
+import { authenticatedContext } from "./auth/test-context";
 import { createDatabase } from "./db";
 import { expensesTable } from "./db/schema";
 import { appRouter } from "./router";
 
 const db = createDatabase("postgresql://test:test@localhost:1/expenses");
-const caller = appRouter.createCaller({ db });
+const caller = appRouter.createCaller(authenticatedContext(db));
 
 afterEach(() => mock.restore());
 afterAll(async () => {
@@ -39,7 +40,7 @@ test("updating a missing expense returns NOT_FOUND over HTTP", async () => {
       }),
     }),
     router: appRouter,
-    createContext: () => ({ db }),
+    createContext: () => authenticatedContext(db),
   });
   expect(response.status).toBe(404);
   expect(await response.json()).toMatchObject({

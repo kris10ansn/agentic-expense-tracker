@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
 import superjson from "superjson";
+import { authenticatedContext, seedTestUser } from "../auth/test-context";
 import { createDatabase } from "../db";
 import { appRouter } from "../router";
 
@@ -17,13 +18,14 @@ describe.skipIf(databaseUrl === undefined)(
     const databaseName = `collections_test_${crypto.randomUUID().replaceAll("-", "")}`;
     url.pathname = `/${databaseName}`;
     const db = createDatabase(url.href);
-    const caller = appRouter.createCaller({ db });
+    const caller = appRouter.createCaller(authenticatedContext(db));
 
     beforeAll(async () => {
       await admin.$client.unsafe(`CREATE DATABASE "${databaseName}"`);
       await migrate(db, {
         migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
       });
+      await seedTestUser(db);
     });
 
     afterAll(async () => {
@@ -135,7 +137,7 @@ describe.skipIf(databaseUrl === undefined)(
           }),
         }),
         router: appRouter,
-        createContext: () => ({ db }),
+        createContext: () => authenticatedContext(db),
       });
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
@@ -156,7 +158,7 @@ describe.skipIf(databaseUrl === undefined)(
           `http://localhost/trpc/collections.get?input=${encodeURIComponent(superjson.stringify({ id: crypto.randomUUID() }))}`,
         ),
         router: appRouter,
-        createContext: () => ({ db }),
+        createContext: () => authenticatedContext(db),
       });
       expect(missing.status).toBe(404);
       expect(await missing.json()).toMatchObject({

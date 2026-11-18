@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+import { requireOwnedReferences } from "../collections/access";
 import {
   expenseCreateSchema,
   expenseIdSchema,
@@ -8,24 +9,30 @@ import {
   expensesTable,
   expenseUpdateSchema,
 } from "../db/schema";
-import { publicProcedure, t } from "../trpc";
+import { protectedProcedure, t } from "../trpc";
 
 export const expensesRouter = t.router({
-  list: publicProcedure.output(expensesSchema).query(({ ctx }) => {
+  list: protectedProcedure.output(expensesSchema).query(({ ctx }) => {
     return ctx.db
       .select()
       .from(expensesTable)
+      .where(eq(expensesTable.userId, ctx.user.id))
       .orderBy(desc(expensesTable.createdAt));
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(expenseIdSchema)
     .output(expenseSchema)
     .query(async ({ ctx, input }) => {
       const [expense] = await ctx.db
         .select()
         .from(expensesTable)
-        .where(eq(expensesTable.id, input.id))
+        .where(
+          and(
+            eq(expensesTable.id, input.id),
+            eq(expensesTable.userId, ctx.user.id),
+          ),
+        )
         .limit(1);
 
       if (expense === undefined) {
@@ -38,13 +45,14 @@ export const expensesRouter = t.router({
       return expense;
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(expenseCreateSchema)
     .output(expenseSchema)
     .mutation(async ({ ctx, input }) => {
+      await requireOwnedReferences({ db: ctx.db, userId: ctx.user.id, input });
       const [expense] = await ctx.db
         .insert(expensesTable)
-        .values(input)
+        .values({ ...input, userId: ctx.user.id })
         .returning();
 
       if (expense === undefined) {
@@ -57,10 +65,11 @@ export const expensesRouter = t.router({
       return expense;
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(expenseUpdateSchema)
     .output(expenseSchema)
     .mutation(async ({ ctx, input }) => {
+      await requireOwnedReferences({ db: ctx.db, userId: ctx.user.id, input });
       const { id, ...changes } = input;
       const [expense] = await ctx.db
         .update(expensesTable)
@@ -68,7 +77,9 @@ export const expensesRouter = t.router({
           ...changes,
           updatedAt: new Date(),
         })
-        .where(eq(expensesTable.id, id))
+        .where(
+          and(eq(expensesTable.id, id), eq(expensesTable.userId, ctx.user.id)),
+        )
         .returning();
 
       if (expense === undefined) {
@@ -81,12 +92,17 @@ export const expensesRouter = t.router({
       return expense;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(expenseIdSchema)
     .mutation(async ({ ctx, input }) => {
       const [expense] = await ctx.db
         .delete(expensesTable)
-        .where(eq(expensesTable.id, input.id))
+        .where(
+          and(
+            eq(expensesTable.id, input.id),
+            eq(expensesTable.userId, ctx.user.id),
+          ),
+        )
         .returning({ id: expensesTable.id });
 
       if (expense === undefined) {

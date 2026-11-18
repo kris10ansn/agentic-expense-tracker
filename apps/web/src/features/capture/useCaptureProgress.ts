@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { type inferOutput, useSubscription } from "@trpc/tanstack-react-query";
+import { handleAuthenticationError } from "../../lib/auth";
 import { type TRPC, trpc } from "../../trpc";
 
 export type Capture = inferOutput<TRPC["captures"]["listActive"]>[number];
@@ -58,6 +59,7 @@ export function useCaptureProgress(captureId: string | typeof skipToken) {
   const queryClient = useQueryClient();
   const { data } = useSubscription(
     trpc.captures.watch.subscriptionOptions(captureId, {
+      onError: handleAuthenticationError,
       onData: (event) => {
         if (captureId === skipToken) return;
         applyCaptureEvent(queryClient, captureId, event);
