@@ -109,6 +109,66 @@ try {
     "PASS: startup paints before JavaScript, CSS, or fonts at desktop and mobile widths; reduced motion works.",
   );
 
+  const delayedRoute = await fixture();
+  const appRouteUrl =
+    /\/(?:assets\/_app-[^/]+\.js|src\/routes\/_app\.tsx\?tsr-split=)/;
+  const releaseRoute = Promise.withResolvers();
+  const routeSession = Promise.withResolvers();
+  delayedRoute.state.auth = routeSession.promise;
+  await delayedRoute.page.addInitScript(() => {
+    window.loadingGaps = [];
+    let started = false;
+    function sampleFrame() {
+      const startup = document.getElementById("startup-screen");
+      if (startup) {
+        started = true;
+      }
+      if (started) {
+        const screen = startup ?? document.getElementById("root");
+        const status = screen?.querySelector('[role="status"]');
+        if (
+          !status?.checkVisibility() ||
+          !status.textContent.trim() ||
+          !status.querySelector("svg")?.checkVisibility()
+        ) {
+          window.loadingGaps.push(performance.now());
+        }
+      }
+      window.loadingFrame = requestAnimationFrame(sampleFrame);
+    }
+    window.loadingFrame = requestAnimationFrame(sampleFrame);
+  });
+  await delayedRoute.page.route(appRouteUrl, async (route) => {
+    await releaseRoute.promise;
+    return route.fallback();
+  });
+  const routeRequested = delayedRoute.page.waitForRequest(appRouteUrl);
+  await delayedRoute.page.goto(origin, { waitUntil: "domcontentloaded" });
+  await routeRequested;
+  // Cross the router's pending delay before releasing the initial route chunk.
+  await delayedRoute.page.waitForTimeout(1500);
+  assert.equal(delayedRoute.state.privateRequests, 0);
+  releaseRoute.resolve();
+  await delayedRoute.page
+    .locator("#startup-screen")
+    .waitFor({ state: "detached" });
+  await delayedRoute.page.waitForTimeout(300);
+  const gaps = await delayedRoute.page.evaluate(() => {
+    cancelAnimationFrame(window.loadingFrame);
+    return window.loadingGaps;
+  });
+  assert.deepEqual(
+    gaps,
+    [],
+    "Every frame must retain the loading message and spinner during the route handoff",
+  );
+  routeSession.resolve({ status: 200, json: session });
+  await delayedRoute.page.getByLabel("Describe an expense").waitFor();
+  await delayedRoute.context.close();
+  console.log(
+    "PASS: delayed route chunks preserve the loading screen through the first route render without a blank frame or spinner flash.",
+  );
+
   const delayed = await fixture();
   const response = Promise.withResolvers();
   delayed.state.auth = response.promise;

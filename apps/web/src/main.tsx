@@ -11,6 +11,16 @@ if (!root) {
   throw new Error("The root element is missing.");
 }
 
+// Wait for route content to reach the DOM before dismissing the initial HTML.
+const unsubscribeStartup = router.subscribe("onRendered", () => {
+  document.getElementById("startup-screen")?.remove();
+  document.getElementById("startup-error")?.remove();
+  root.removeAttribute("inert");
+  root.removeAttribute("aria-hidden");
+  unsubscribeStartup();
+});
+import.meta.hot?.dispose(unsubscribeStartup);
+
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

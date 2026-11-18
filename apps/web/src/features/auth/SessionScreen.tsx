@@ -4,7 +4,6 @@ import {
   type LoadingPhase,
   LoadingScreen,
 } from "../../components/LoadingScreen";
-import { useStartupReady } from "../../hooks/useStartupReady";
 
 type SessionScreenProps =
   | { kind: "loading" }
@@ -29,7 +28,6 @@ function SessionLoadingScreen() {
 }
 
 export function SessionScreen(props: SessionScreenProps) {
-  useStartupReady();
   if (props.kind === "error") {
     return (
       <LoadingScreen
