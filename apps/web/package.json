@@ -7,7 +7,8 @@
     "build": "bun --bun run vite build",
     "preview": "bun --bun run vite preview",
     "typecheck": "bun --bun run tsc --noEmit",
-    "smoke": "bun scripts/smoke.ts"
+    "smoke": "bun scripts/smoke.ts",
+    "test:startup": "bun scripts/startup.browser.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",
@@ -29,6 +30,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "playwright": "1.62.1",
     "tailwindcss": "^4.3.5",
     "vite": "^8.3.8"
   }

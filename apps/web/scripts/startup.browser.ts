@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
+import { type BrowserContextOptions, chromium, type Page } from "playwright";
 
-// Use an existing Playwright installation; no application dependency is needed.
-const { chromium } = await import(
-  process.env.PLAYWRIGHT_MODULE ?? "playwright"
-);
+declare global {
+  interface Window {
+    loadingGaps: number[];
+    loadingFrame: number;
+  }
+}
 const origin = process.env.WEB_URL ?? "http://127.0.0.1:4173";
 const output = process.env.SCREENSHOT_DIR;
 const browser = await chromium.launch({
@@ -12,7 +15,7 @@ const browser = await chromium.launch({
     ? { executablePath: process.env.CHROMIUM_PATH }
     : {}),
 });
-const errors = [];
+const errors: string[] = [];
 const session = {
   user: {
     id: "startup-test",
@@ -32,19 +35,26 @@ const session = {
   },
 };
 
-async function fixture(options = {}) {
+type SessionResponse =
+  | { status: 200; json: typeof session | null }
+  | { status: 503; json: { message: string } };
+
+async function fixture(options: BrowserContextOptions = {}) {
   const context = await browser.newContext(options);
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   page.on("pageerror", (error) => errors.push(error.message));
-  const state = { auth: { status: 200, json: session }, privateRequests: 0 };
+  const state: {
+    auth: SessionResponse | Promise<SessionResponse>;
+    privateRequests: number;
+  } = { auth: { status: 200, json: session }, privateRequests: 0 };
   await page.route("**/api/auth/get-session**", async (route) => {
     await route.fulfill(await state.auth);
   });
   await page.route("**/trpc/**", (route) => {
     state.privateRequests++;
     const names = new URL(route.request().url()).pathname
-      .split("/trpc/")[1]
+      .slice("/trpc/".length)
       .split(",");
     return route.fulfill({
       json: names.map(() => ({ result: { data: { json: [] } } })),
@@ -53,7 +63,7 @@ async function fixture(options = {}) {
   return { context, page, state };
 }
 
-async function screenshot(page, name) {
+async function screenshot(page: Page, name: string) {
   if (output) {
     // Capture the actual paint without waiting for intentionally stalled fonts.
     const client = await page.context().newCDPSession(page);
@@ -112,8 +122,8 @@ try {
   const delayedRoute = await fixture();
   const appRouteUrl =
     /\/(?:assets\/_app-[^/]+\.js|src\/routes\/_app\.tsx\?tsr-split=)/;
-  const releaseRoute = Promise.withResolvers();
-  const routeSession = Promise.withResolvers();
+  const releaseRoute = Promise.withResolvers<void>();
+  const routeSession = Promise.withResolvers<SessionResponse>();
   delayedRoute.state.auth = routeSession.promise;
   await delayedRoute.page.addInitScript(() => {
     window.loadingGaps = [];
@@ -128,7 +138,7 @@ try {
         const status = screen?.querySelector('[role="status"]');
         if (
           !status?.checkVisibility() ||
-          !status.textContent.trim() ||
+          !status.textContent?.trim() ||
           !status.querySelector("svg")?.checkVisibility()
         ) {
           window.loadingGaps.push(performance.now());
@@ -170,7 +180,7 @@ try {
   );
 
   const delayed = await fixture();
-  const response = Promise.withResolvers();
+  const response = Promise.withResolvers<SessionResponse>();
   delayed.state.auth = response.promise;
   await delayed.page.goto(origin);
   await delayed.page.locator("#startup-screen").waitFor({ state: "detached" });

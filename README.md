@@ -118,15 +118,14 @@ Adjust the URL if your local database settings differ. Without `TEST_DATABASE_UR
 
 `bun run check` checks formatting, lint rules, and imports with Biome. Use `bun run check:fix` to apply safe fixes, or `bun run format` to apply formatting only.
 
-With the web preview or development server running, the startup browser check verifies rendering with all application assets held pending, mobile layouts, reduced motion, session retries, redirects, and failed asset recovery. It uses an existing Playwright installation without adding a workspace dependency:
+With the web preview or development server running, the startup browser check verifies rendering with all application assets held pending, mobile layouts, reduced motion, session retries, redirects, and failed asset recovery. It runs through Bun with the web workspace's Playwright development dependency and is included in `bun run typecheck`. Install Chromium once, then run the check:
 
 ```sh
-PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs \
-  WEB_URL=http://127.0.0.1:4173 \
-  node apps/web/scripts/startup.browser.mjs
+bun run --cwd apps/web playwright install chromium
+WEB_URL=http://127.0.0.1:4173 bun run --filter @ai-expenses/web test:startup
 ```
 
-Omit `PLAYWRIGHT_MODULE` if Node can already resolve `playwright`. Set `CHROMIUM_PATH` to use a system Chromium executable, and `SCREENSHOT_DIR` to save screenshots. Run the same check against the development server by changing `WEB_URL`.
+Set `CHROMIUM_PATH` to use a system Chromium executable instead of installing one, and `SCREENSHOT_DIR` to save screenshots. Run the same check against the development server by changing `WEB_URL`.
 
 With the database and both apps running, verify the HTTP connection through Vite to tRPC and PostgreSQL:
 
