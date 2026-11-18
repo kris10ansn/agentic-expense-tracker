@@ -47,7 +47,7 @@ const outcomes = {
       failures: [
         {
           partialExpense: { title: "Coffee" },
-          sourceText: "Coffee",
+          sourceText: "Coffee, amount not written on receipt",
           reason: "Missing amount",
           suggestions: [],
         },
@@ -253,7 +253,7 @@ try {
     } else {
       const titles = {
         failed: "Capture failed",
-        review: "Needs review",
+        review: "Capture complete · Review needed",
       };
       const title =
         scenario === "failed" || scenario === "review"
@@ -276,6 +276,42 @@ try {
         true,
       );
       if (scenario === "failed" || scenario === "review") {
+        if (scenario === "review") {
+          const details = card.getByRole("list", {
+            name: "Items needing review",
+            includeHidden: true,
+          });
+          const reviewButton = card.getByRole("button", {
+            name: "Review 1 item",
+          });
+          await card.getByText("1 item not saved", { exact: true }).waitFor();
+          assert.equal(await details.isVisible(), false);
+          assert.equal(
+            await reviewButton.getAttribute("aria-expanded"),
+            "false",
+          );
+          assert.equal(
+            await reviewButton.getAttribute("aria-controls"),
+            await details.getAttribute("id"),
+          );
+          if (screenshots) {
+            await page.screenshot({
+              path: `${screenshots}/review-collapsed.png`,
+            });
+          }
+          await reviewButton.press("Enter");
+          await details.waitFor();
+          const hideButton = card.getByRole("button", { name: "Hide details" });
+          assert.equal(await hideButton.getAttribute("aria-expanded"), "true");
+          await details.getByText("Coffee", { exact: true }).waitFor();
+          await details
+            .getByText("Coffee, amount not written on receipt", { exact: true })
+            .waitFor();
+          await hideButton.click();
+          await details.waitFor({ state: "hidden" });
+          await reviewButton.click();
+          await details.waitFor();
+        }
         await card
           .getByText(
             scenario === "failed" ? "AI unavailable" : "Missing amount",
@@ -311,6 +347,10 @@ try {
         );
         if (screenshots) {
           await page.screenshot({ path: `${screenshots}/${scenario}.png` });
+          await page.setViewportSize({ width: 1280, height: 900 });
+          await page.screenshot({
+            path: `${screenshots}/${scenario}-desktop.png`,
+          });
         }
         await card.getByRole("button", { name: "Dismiss" }).click();
         await card.waitFor({ state: "detached" });
