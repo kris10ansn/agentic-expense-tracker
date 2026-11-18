@@ -54,6 +54,8 @@ Capture controls remain visual only. Text grows from a single line, and you can 
 
 Data sections use TanStack Query and the tRPC options proxy to read expenses and collections from a shared cache. Lists and selectors show skeletons during initial loading and local retry messages on failure. Background refreshes preserve cached content and capture drafts. List components receive ordinary data and callbacks; workspace context owns dialog actions. Dialogs load their required data when opened, and mutations invalidate the affected queries after writes.
 
+Vite renders the shared `LoadingScreen` component into the initial HTML in development and production. The HTML includes the Tailwind utilities needed by that screen, compiled from the same stylesheet as the app. A small bootstrap module loads React and the application CSS asynchronously. The startup screen stays visible until the session screen, login page, workspace, or route error renders. Failed application downloads show a reload action. This makes the loading screen visible before application assets arrive; it does not make the session request finish sooner.
+
 The backend exposes AI extraction and saved expense and collection CRUD. The UI derives extraction fields and categories from the router type; record and create-input types in `src/lib/expenses.ts` are inferred from the CRUD endpoints. The UI uses collection titles, purchase timestamps, optional collections, and totals grouped by currency.
 
 The API listens on <http://localhost:3001>, serves tRPC at `/trpc` and Better Auth at `/api/auth`, and exposes a public process health check at `/health`. Sign-in and workspace access require the API.
@@ -115,6 +117,16 @@ TEST_DATABASE_URL=postgresql://ai_expenses:ai_expenses@127.0.0.1:5432/ai_expense
 Adjust the URL if your local database settings differ. Without `TEST_DATABASE_URL`, the PostgreSQL integration tests are skipped.
 
 `bun run check` checks formatting, lint rules, and imports with Biome. Use `bun run check:fix` to apply safe fixes, or `bun run format` to apply formatting only.
+
+With the web preview or development server running, the startup browser check verifies rendering with all application assets held pending, mobile layouts, reduced motion, session retries, redirects, and failed asset recovery. It uses an existing Playwright installation without adding a workspace dependency:
+
+```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs \
+  WEB_URL=http://127.0.0.1:4173 \
+  node apps/web/scripts/startup.browser.mjs
+```
+
+Omit `PLAYWRIGHT_MODULE` if Node can already resolve `playwright`. Set `CHROMIUM_PATH` to use a system Chromium executable, and `SCREENSHOT_DIR` to save screenshots. Run the same check against the development server by changing `WEB_URL`.
 
 With the database and both apps running, verify the HTTP connection through Vite to tRPC and PostgreSQL:
 

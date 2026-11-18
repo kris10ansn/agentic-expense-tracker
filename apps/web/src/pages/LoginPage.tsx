@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button, FormField, TextInput } from "../components/inputs";
+import { useStartupReady } from "../hooks/useStartupReady";
 import { authClient } from "../lib/auth";
 
 export function LoginPage() {
+  useStartupReady();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 

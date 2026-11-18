@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
+import { startupHtml } from "./scripts/startup-html.ts";
 
 const envDir = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -25,6 +26,7 @@ export default defineConfig(({ mode }) => {
       tanstackRouter({ target: "react", autoCodeSplitting: true }),
       react(),
       tailwindcss(),
+      startupHtml(),
     ],
     server: { port: Number(env.WEB_PORT ?? 5173), strictPort: true, proxy },
     preview: { port: 4173, strictPort: true, proxy },

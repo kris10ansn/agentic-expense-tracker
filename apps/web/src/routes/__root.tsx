@@ -5,8 +5,10 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { Button } from "../components/inputs";
+import { useStartupReady } from "../hooks/useStartupReady";
 
 function NotFoundPage() {
+  useStartupReady();
   return (
     <main className="font-inter mx-auto max-w-lg px-6 py-16">
       <h1 className="text-2xl font-semibold">Page not found</h1>
@@ -21,6 +23,7 @@ function NotFoundPage() {
 }
 
 function ErrorPage() {
+  useStartupReady();
   const router = useRouter();
   return (
     <main className="font-inter mx-auto max-w-lg px-6 py-16">
