@@ -31,6 +31,24 @@ export async function processCapture({
 }) {
   try {
     const extraction = await extractExpenses(input);
+    if (
+      "kind" in extraction ||
+      (extraction.expenses.length === 0 && extraction.failures.length === 0)
+    ) {
+      await publishCaptureUpdate(
+        captureId,
+        {
+          capture: { status: "failed" },
+          errorMessage:
+            "kind" in extraction
+              ? extraction.reason
+              : "No expenses could be recognized.",
+        },
+        db,
+      );
+      return;
+    }
+
     await publishCaptureUpdate(
       captureId,
       { capture: { status: "saving" } },

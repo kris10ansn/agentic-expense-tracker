@@ -71,6 +71,33 @@ afterEach(() => {
 });
 
 describe("extractExpenses", () => {
+  test("accepts an explicit not-recognized result with a useful reason", async () => {
+    const result = {
+      kind: "not_recognized",
+      reason: "No purchase details found.",
+    } satisfies Awaited<ReturnType<typeof extractExpenses>>;
+    spyOn(globalThis, "fetch").mockResolvedValue(googleResponse(result));
+    expect(
+      await extractExpenses(expenseFormSchema.parse(expenseForm("Hello"))),
+    ).toEqual(result);
+  });
+
+  test.each([
+    { kind: "not_recognized" },
+    { kind: "not_recognized", reason: "   " },
+    {
+      kind: "not_recognized",
+      reason: "Nothing found",
+      expenses: extraction.expenses,
+      failures: [],
+    },
+  ])("rejects invalid or contradictory rejection output %j", async (result) => {
+    spyOn(globalThis, "fetch").mockResolvedValue(googleResponse(result));
+    await expect(
+      extractExpenses(expenseFormSchema.parse(expenseForm("Hello"))),
+    ).rejects.toBeInstanceOf(NoObjectGeneratedError);
+  });
+
   test.each([
     ["text", () => expenseForm("Coffee 45 kr")],
     [
@@ -163,6 +190,9 @@ describe("extractExpenses", () => {
     const result = await extractExpenses(
       expenseFormSchema.parse(expenseForm("Coffee and lunch")),
     );
+    if (!("expenses" in result)) {
+      throw new Error("Expected recognized expenses");
+    }
     expect(result.expenses[0]?.purchasedAt).toEqual(new Date(purchasedAt));
     expect(result.failures[0]?.partialExpense.purchasedAt).toEqual(
       new Date(purchasedAt),

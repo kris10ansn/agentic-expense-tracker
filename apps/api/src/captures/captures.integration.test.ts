@@ -179,7 +179,58 @@ describe.skipIf(databaseUrl === undefined)(
       ).toBe(false);
     });
 
-    test("completes empty extraction results and preserves partial failures", async () => {
+    test.each([
+      {
+        result: {
+          kind: "not_recognized",
+          reason: "No purchase details found.",
+        },
+        errorMessage: "No purchase details found.",
+      },
+      {
+        result: { expenses: [], failures: [] },
+        errorMessage: "No expenses could be recognized.",
+      },
+    ] satisfies {
+      result: Awaited<ReturnType<typeof extraction.extractExpenses>>;
+      errorMessage: string;
+    }[])(
+      "fails captures without complete or partial expenses: $errorMessage",
+      async ({ result, errorMessage }) => {
+        const captureId = await createCapture();
+        spyOn(extraction, "extractExpenses").mockResolvedValue(result);
+        const watch = (await caller.watch(captureId))[Symbol.asyncIterator]();
+        await watch.next();
+
+        await processCapture({
+          userId: testUserId,
+          captureId,
+          input: { ...input, id: captureId },
+          db,
+        });
+
+        expect(await watch.next()).toMatchObject({
+          value: { capture: { status: "failed" }, errorMessage },
+        });
+        expect(await watch.next()).toEqual({ done: true, value: undefined });
+        const [capture] = await db
+          .select()
+          .from(capturesTable)
+          .where(eq(capturesTable.id, captureId));
+        expect(capture?.status).toBe("failed");
+        expect(
+          await db
+            .select()
+            .from(expensesTable)
+            .where(eq(expensesTable.captureId, captureId)),
+        ).toEqual([]);
+        expect(await caller.listActive()).not.toContainEqual(
+          expect.objectContaining({ id: captureId }),
+        );
+      },
+    );
+
+    test("completes partial-only extraction results and preserves partial failures", async () => {
       const captureId = await createCapture();
       const failures = [
         {

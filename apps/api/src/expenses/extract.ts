@@ -4,14 +4,14 @@ import type z from "zod";
 import type { ExpenseInput } from "./input";
 import instructions from "./PROMPT.md" with { type: "text" };
 import {
-  type expenseExtractionsSchema,
-  expenseModelOutputSchema,
+  type expenseExtractionResultSchema,
+  expenseModelResultSchema,
 } from "./schema";
 
 export async function extractExpenses({
   description,
   files,
-}: ExpenseInput): Promise<z.infer<typeof expenseExtractionsSchema>> {
+}: ExpenseInput): Promise<z.infer<typeof expenseExtractionResultSchema>> {
   const attachments = await Promise.all(
     files.map(
       async (image): Promise<FilePart> => ({
@@ -24,7 +24,7 @@ export async function extractExpenses({
 
   const { output } = await generateText({
     model: google("gemini-3.5-flash-lite"),
-    output: Output.object({ schema: expenseModelOutputSchema }),
+    output: Output.object({ schema: expenseModelResultSchema }),
     instructions,
     prompt: [
       {

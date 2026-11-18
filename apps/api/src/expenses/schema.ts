@@ -39,3 +39,18 @@ export const expenseModelOutputSchema = expenseExtractionsSchema.extend({
   expenses: z.array(modelExpenseSchema),
   failures: modelFailuresSchema,
 });
+
+const notRecognizedSchema = z.strictObject({
+  kind: z.literal("not_recognized"),
+  reason: z.string().trim().min(1),
+});
+
+export const expenseExtractionResultSchema = z.union([
+  expenseExtractionsSchema.strict(),
+  notRecognizedSchema,
+]);
+
+export const expenseModelResultSchema = z.union([
+  expenseModelOutputSchema.strict(),
+  notRecognizedSchema,
+]);
