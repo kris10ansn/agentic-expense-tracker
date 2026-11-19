@@ -110,7 +110,7 @@ describe.skipIf(databaseUrl === undefined)(
       });
       spyOn(builder, "set").mockReturnValue(saving);
       spyOn(db, "update").mockReturnValueOnce(builder);
-      const insert = spyOn(db, "insert");
+      const transaction = spyOn(db, "transaction");
       const processing = processCapture({
         userId: testUserId,
         captureId,
@@ -120,7 +120,13 @@ describe.skipIf(databaseUrl === undefined)(
 
       try {
         await savingStarted.promise;
-        expect(insert).not.toHaveBeenCalled();
+        expect(transaction).not.toHaveBeenCalled();
+        expect(
+          await db
+            .select()
+            .from(expensesTable)
+            .where(eq(expensesTable.captureId, captureId)),
+        ).toEqual([]);
       } finally {
         allowSaving.resolve();
         await processing;
@@ -239,6 +245,7 @@ describe.skipIf(databaseUrl === undefined)(
         {
           partialExpense: { title: "Coffee" },
           sourceText: "Coffee",
+          sourceImageIds: [],
           reason: "Missing amount",
           suggestions: [],
         },
@@ -261,6 +268,82 @@ describe.skipIf(databaseUrl === undefined)(
         },
       });
       expect(await watch.next()).toEqual({ done: true, value: undefined });
+    });
+
+    test("preserves image references through live updates, storage, and reconnects", async () => {
+      const result =
+        Promise.withResolvers<
+          Awaited<ReturnType<typeof extraction.extractExpenses>>
+        >();
+      spyOn(extraction, "extractExpenses").mockReturnValue(result.promise);
+      const failures = [
+        {
+          partialExpense: { title: "Lunch" },
+          sourceText: "Lunch 120 / Lunch 150",
+          sourceImageIds: ["image-1", "image-2"],
+          reason: "Conflicting totals",
+          suggestions: [],
+        },
+        {
+          partialExpense: { title: "Tea" },
+          sourceText: "Tea",
+          sourceImageIds: ["image-2"],
+          reason: "Missing amount",
+          suggestions: [],
+        },
+      ];
+      const form = new FormData();
+      form.set("id", crypto.randomUUID());
+      form.set("description", "Lunch and tea receipts");
+      form.set("collectionId", collectionId);
+      form.append(
+        "files",
+        new File(["first"], "receipt.png", { type: "image/png" }),
+      );
+      form.append(
+        "files",
+        new File(["second"], "receipt.png", { type: "image/png" }),
+      );
+      const capture = await caller.start(form);
+      const watch = (await caller.watch(capture.id))[Symbol.asyncIterator]();
+      expect(await watch.next()).toMatchObject({
+        value: { capture: { status: "extracting" } },
+      });
+      const saving = watch.next();
+      result.resolve({ ...extracted, failures });
+      expect(await saving).toMatchObject({
+        value: { capture: { status: "saving" } },
+      });
+      expect(await watch.next()).toMatchObject({
+        value: {
+          capture: { status: "complete", failures },
+          createdExpenses: [{ title: "Coffee" }],
+        },
+      });
+      expect(await watch.next()).toEqual({ done: true, value: undefined });
+
+      const reconnectedDb = createDatabase(url.href);
+      try {
+        const reconnected = capturesRouter.createCaller(
+          authenticatedContext(reconnectedDb),
+        );
+        expect(await reconnected.listVisible()).toContainEqual(
+          expect.objectContaining({
+            id: capture.id,
+            fileNames: ["receipt.png", "receipt.png"],
+            failures,
+          }),
+        );
+        const restored = (await reconnected.watch(capture.id))[
+          Symbol.asyncIterator
+        ]();
+        expect(await restored.next()).toMatchObject({
+          value: { capture: { failures } },
+        });
+        expect(await restored.next()).toEqual({ done: true, value: undefined });
+      } finally {
+        await reconnectedDb.$client.close();
+      }
     });
 
     test("accepts multipart captures over HTTP and persists their expenses", async () => {
@@ -349,6 +432,7 @@ describe.skipIf(databaseUrl === undefined)(
           {
             partialExpense: { title: "Tea" },
             sourceText: "Tea",
+            sourceImageIds: [],
             reason: "Missing amount",
             suggestions: [],
           },
@@ -580,6 +664,129 @@ describe.skipIf(databaseUrl === undefined)(
           .from(expensesTable)
           .where(eq(expensesTable.captureId, captureId)),
       ).toEqual([]);
+    });
+
+    test("publishes completion only after the save transaction commits", async () => {
+      const captureId = await createCapture();
+      spyOn(extraction, "extractExpenses").mockResolvedValue(extracted);
+      const emit = spyOn(captureEvents, "emit");
+      const transaction = db.transaction.bind(db);
+      spyOn(db, "transaction").mockImplementation(async (work, config) => {
+        const result = await transaction(work, config);
+        expect(emit).not.toHaveBeenCalledWith(
+          captureId,
+          expect.objectContaining({
+            capture: expect.objectContaining({ status: "complete" }),
+          }),
+        );
+        return result;
+      });
+
+      await processCapture({
+        userId: testUserId,
+        captureId,
+        input: { ...input, id: captureId },
+        db,
+      });
+
+      expect(emit).toHaveBeenCalledWith(
+        captureId,
+        expect.objectContaining({
+          capture: expect.objectContaining({ status: "complete" }),
+          createdExpenses: [expect.objectContaining({ captureId })],
+        }),
+      );
+    });
+
+    test("a completion notification failure does not overwrite the committed outcome", async () => {
+      const captureId = await createCapture();
+      const notificationError = new Error("Notification failed");
+      const logError = spyOn(console, "error").mockImplementation(() => {});
+      spyOn(extraction, "extractExpenses").mockResolvedValue(extracted);
+      spyOn(captureEvents, "emit").mockImplementation((_id, event) => {
+        if (event.capture.status === "complete") {
+          throw notificationError;
+        }
+        return false;
+      });
+
+      await expect(
+        processCapture({
+          userId: testUserId,
+          captureId,
+          input: { ...input, id: captureId },
+          db,
+        }),
+      ).resolves.toBeUndefined();
+      expect(logError).toHaveBeenCalledWith(
+        "Failed to publish capture update",
+        {
+          captureId,
+          status: "complete",
+          error: notificationError,
+        },
+      );
+      expect(
+        await db
+          .select()
+          .from(capturesTable)
+          .where(eq(capturesTable.id, captureId)),
+      ).toMatchObject([{ status: "complete" }]);
+      expect(
+        await db
+          .select()
+          .from(expensesTable)
+          .where(eq(expensesTable.captureId, captureId)),
+      ).toMatchObject([{ captureId }]);
+    });
+
+    test("rolls back expenses when recording completion fails", async () => {
+      const captureId = await createCapture();
+      spyOn(extraction, "extractExpenses").mockResolvedValue(extracted);
+      const emit = spyOn(captureEvents, "emit");
+      // Inject a real PostgreSQL write failure after the expense insert.
+      await db.execute(
+        sql`ALTER TABLE captures ADD CONSTRAINT reject_completion
+        CHECK (id <> ${captureId}::uuid OR status <> 'complete')`.inlineParams(),
+      );
+      try {
+        await processCapture({
+          userId: testUserId,
+          captureId,
+          input: { ...input, id: captureId },
+          db,
+        });
+        const [capture] = await db
+          .select()
+          .from(capturesTable)
+          .where(eq(capturesTable.id, captureId));
+        expect(capture).toMatchObject({
+          status: "failed",
+          errorMessage: expect.any(String),
+        });
+        expect(
+          await db
+            .select()
+            .from(expensesTable)
+            .where(eq(expensesTable.captureId, captureId)),
+        ).toEqual([]);
+        expect(emit).not.toHaveBeenCalledWith(
+          captureId,
+          expect.objectContaining({
+            capture: expect.objectContaining({ status: "complete" }),
+          }),
+        );
+        expect(emit).toHaveBeenCalledWith(
+          captureId,
+          expect.objectContaining({
+            capture: expect.objectContaining({ status: "failed" }),
+          }),
+        );
+      } finally {
+        await db.execute(
+          sql`ALTER TABLE captures DROP CONSTRAINT reject_completion`,
+        );
+      }
     });
 
     test("rejects missing captures and cleans up their listeners", async () => {

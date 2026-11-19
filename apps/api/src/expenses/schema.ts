@@ -15,6 +15,7 @@ export const expenseExtractionsSchema = z.object({
     z.object({
       partialExpense: extractedExpenseSchema.partial(),
       sourceText: z.string(),
+      sourceImageIds: z.array(z.string()),
       reason: z.string(),
       suggestions: z.array(suggestionSchema),
     }),
@@ -35,15 +36,25 @@ export const modelFailuresSchema = z.array(
   }),
 );
 
+// Captures saved before image attribution have no sourceImageIds.
+export const captureFailuresSchema = z.array(
+  modelFailuresSchema.element.extend({
+    sourceImageIds: modelFailuresSchema.element.shape.sourceImageIds.optional(),
+  }),
+);
+
 export const expenseModelOutputSchema = expenseExtractionsSchema.extend({
   expenses: z.array(modelExpenseSchema),
   failures: modelFailuresSchema,
 });
+export type ExpenseModelOutput = z.infer<typeof expenseModelOutputSchema>;
 
 const notRecognizedSchema = z.strictObject({
   kind: z.literal("not_recognized"),
   reason: z.string().trim().min(1),
 });
+
+export type NotRecognizedResult = z.infer<typeof notRecognizedSchema>;
 
 export const expenseExtractionResultSchema = z.union([
   expenseExtractionsSchema.strict(),
@@ -54,3 +65,7 @@ export const expenseModelResultSchema = z.union([
   expenseModelOutputSchema.strict(),
   notRecognizedSchema,
 ]);
+
+export type ExpenseExtractionResult = z.infer<
+  typeof expenseExtractionResultSchema
+>;

@@ -1,6 +1,7 @@
 import { ChevronRight, ChevronUp, Info, TriangleAlert } from "lucide-react";
 import { useId, useState } from "react";
 import { twMerge } from "tailwind-merge";
+import { CaptureSourceImages } from "./CaptureSourceImages";
 import type { CaptureCardState } from "./useCaptureProgress";
 
 const messages = {
@@ -16,9 +17,13 @@ const messages = {
 
 export function CaptureCardOutcome({
   state,
+  fileNames,
+  files,
   onDismiss,
 }: {
   state: CaptureCardState;
+  fileNames: string[];
+  files: File[];
   onDismiss: (() => void) | undefined;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -49,9 +54,16 @@ export function CaptureCardOutcome({
                 <p className="mt-1 leading-relaxed text-amber-800">
                   {failure.reason}
                 </p>
-                <blockquote className="mt-2 border-l-2 border-neutral-200 bg-neutral-50 px-2.5 py-2 leading-relaxed text-neutral-500">
-                  {failure.sourceText}
-                </blockquote>
+                {failure.sourceText && (
+                  <blockquote className="mt-2 border-l-2 border-neutral-200 bg-neutral-50 px-2.5 py-2 leading-relaxed text-neutral-500">
+                    {failure.sourceText}
+                  </blockquote>
+                )}
+                <CaptureSourceImages
+                  sourceImageIds={failure.sourceImageIds}
+                  fileNames={fileNames}
+                  files={files}
+                />
               </div>
             </li>
           ))}

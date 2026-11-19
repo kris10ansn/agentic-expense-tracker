@@ -549,6 +549,215 @@ try {
     console.log(`PASS: ${scenario}`);
   }
 
+  {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(5000);
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      page.on("console", (message) => {
+        if (message.type() === "error") {
+          errors.push(message.text());
+        }
+      });
+      const failures = [
+        {
+          partialExpense: { title: "Lunch" },
+          sourceText: "Lunch 120 / Lunch 150",
+          sourceImageIds: ["image-2", "image-3"],
+          reason: "Conflicting totals",
+          suggestions: [],
+        },
+        {
+          partialExpense: { title: "Tea" },
+          sourceText: "",
+          sourceImageIds: ["image-2"],
+          reason: "Missing amount",
+          suggestions: [],
+        },
+        {
+          partialExpense: { title: "Dinner" },
+          sourceText: "Dinner",
+          sourceImageIds: [],
+          reason: "Missing amount in description",
+          suggestions: [],
+        },
+        {
+          partialExpense: { title: "Older capture failure" },
+          sourceText: "Coffee",
+          reason: "Missing amount",
+          suggestions: [],
+        },
+      ];
+      let currentCapture: Capture | undefined;
+      await page.route("**/api/auth/get-session**", (route) =>
+        route.fulfill({ json: session }),
+      );
+      await page.route("**/trpc/**", async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === "/trpc/captures.start") {
+          const body = route.request().postDataBuffer();
+          assert.ok(body);
+          const form = await new Request(route.request().url(), {
+            method: "POST",
+            headers: route.request().headers(),
+            body: new Uint8Array(body),
+          }).formData();
+          const id = z.uuid().parse(form.get("id"));
+          currentCapture = {
+            ...capture,
+            id,
+            description: "Image source fixture",
+            fileNames: form
+              .getAll("files")
+              .filter((file) => file instanceof File)
+              .map((file) => file.name),
+          };
+          return route.fulfill({
+            json: { result: { data: superjson.serialize(currentCapture) } },
+          });
+        }
+        if (path === "/trpc/captures.watch") {
+          assert.ok(currentCapture);
+          currentCapture = { ...currentCapture, status: "complete", failures };
+          const event = {
+            capture: { status: "complete", failures },
+            createdExpenses: [],
+          } satisfies CaptureEvent;
+          return route.fulfill({
+            contentType: "text/event-stream",
+            body: `event: connected\ndata: {}\n\ndata: ${superjson.stringify(event)}\n\nevent: return\ndata: \n\n`,
+          });
+        }
+        const results = path
+          .slice("/trpc/".length)
+          .split(",")
+          .map((name) => {
+            if (name === "captures.listVisible") {
+              return {
+                result: {
+                  data: superjson.serialize(
+                    currentCapture ? [currentCapture] : [],
+                  ),
+                },
+              };
+            }
+            if (name === "collections.list") {
+              return {
+                result: {
+                  data: superjson.serialize([
+                    {
+                      id: "00000000-0000-4000-8000-000000000002",
+                      title: "Meals",
+                      color: "#458a72",
+                    },
+                  ]),
+                },
+              };
+            }
+            return { result: { data: superjson.serialize([]) } };
+          });
+        return route.fulfill({ json: results });
+      });
+      await page.goto(origin);
+      await page.getByLabel("Describe an expense").fill("Image source fixture");
+      await page
+        .getByRole("button", { name: "Choose from gallery" })
+        .locator("input")
+        .setInputFiles(
+          ["receipt.png", "receipt.png", "second-total.png"].map((name) => ({
+            name,
+            mimeType: "image/png",
+            buffer: Buffer.from(
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+              "base64",
+            ),
+          })),
+        );
+      await page.getByRole("button", { name: "Add described expense" }).click();
+      const card = page
+        .getByRole("status")
+        .filter({ hasText: "Image source fixture" });
+      for (const reloaded of [false, true]) {
+        if (reloaded) {
+          await page.reload();
+        }
+        await card.getByRole("button", { name: "Review 4 items" }).click();
+        const details = card.getByRole("list", {
+          name: "Items needing review",
+        });
+        const lunch = details
+          .locator(":scope > li")
+          .filter({ hasText: "Conflicting totals" });
+        const sources = lunch.getByRole("list", { name: "Source images" });
+        assert.deepEqual(
+          await sources.getByRole("listitem").allTextContents(),
+          ["receipt.pngImage 2", "second-total.pngImage 3"],
+        );
+        assert.equal(await sources.getByRole("img").count(), reloaded ? 0 : 2);
+        await lunch
+          .getByText("Lunch 120 / Lunch 150", { exact: true })
+          .waitFor();
+        const tea = details
+          .locator(":scope > li")
+          .filter({ has: page.getByText("Tea", { exact: true }) });
+        assert.deepEqual(
+          await tea
+            .getByRole("list", { name: "Source images" })
+            .getByRole("listitem")
+            .allTextContents(),
+          ["receipt.pngImage 2"],
+        );
+        assert.equal(await tea.locator("blockquote").count(), 0);
+        for (const title of ["Dinner", "Older capture failure"]) {
+          const item = details
+            .locator(":scope > li")
+            .filter({ has: page.getByText(title, { exact: true }) });
+          assert.equal(
+            await item.getByRole("list", { name: "Source images" }).count(),
+            0,
+          );
+          assert.equal(await item.locator("blockquote").count(), 1);
+        }
+        if (!reloaded) {
+          assert.equal(
+            await sources
+              .getByRole("img")
+              .evaluateAll((images) =>
+                images.every(
+                  (image) =>
+                    image instanceof HTMLImageElement &&
+                    image.complete &&
+                    image.naturalWidth > 0,
+                ),
+              ),
+            true,
+          );
+        }
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+          true,
+        );
+        if (screenshots) {
+          await page.screenshot({
+            path: `${screenshots}/image-sources${reloaded ? "-reloaded" : ""}.png`,
+          });
+        }
+      }
+      assert.deepEqual(errors, []);
+      console.log(
+        "PASS: image references, duplicate filenames, and legacy failures across reload",
+      );
+    } finally {
+      await context.close();
+    }
+  }
+
   for (const order of ["failure-first", "success-first", "together"]) {
     const context = await browser.newContext();
     try {

@@ -147,6 +147,7 @@ test("review outcomes remain in the capture cache with their details", () => {
     {
       partialExpense: { title: "Coffee" },
       sourceText: "Coffee",
+      sourceImageIds: ["image-1", "image-2"],
       reason: "Missing amount",
       suggestions: [],
     },

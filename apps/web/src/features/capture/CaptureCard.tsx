@@ -38,17 +38,18 @@ export function CaptureCard({
     >
       <div className="space-y-3 px-3.5 py-3">
         <CaptureCardHeader kind={state.kind} />
-        {files.length > 0 && (
+        {capture.fileNames.length > 0 && (
           <ul className="space-y-3">
-            {files.map((file) => (
-              <CaptureFilePreview key={file.name} file={file} />
+            {capture.fileNames.map((fileName, index) => (
+              <CaptureFilePreview
+                // biome-ignore lint/suspicious/noArrayIndexKey: Image IDs use the capture's fixed upload order, including duplicate filenames.
+                key={`image-${index + 1}`}
+                file={files[index]}
+                fileName={fileName}
+                imageNumber={index + 1}
+              />
             ))}
           </ul>
-        )}
-        {files.length === 0 && capture.fileNames.length > 0 && (
-          <p className="text-xs wrap-anywhere text-neutral-600">
-            {capture.fileNames.join(", ")}
-          </p>
         )}
         {capture.description && (
           <p className="text-xs leading-relaxed text-pretty wrap-anywhere text-neutral-500">
@@ -69,6 +70,8 @@ export function CaptureCard({
       </div>
       <CaptureCardOutcome
         state={state}
+        fileNames={capture.fileNames}
+        files={files}
         onDismiss={
           state.kind === "failed" || state.kind === "needs-review"
             ? dismiss

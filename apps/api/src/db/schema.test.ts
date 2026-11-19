@@ -4,7 +4,10 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
 import { z } from "zod";
 import { authenticatedContext } from "../auth/test-context";
-import { expenseModelOutputSchema } from "../expenses/schema";
+import {
+  captureFailuresSchema,
+  expenseModelOutputSchema,
+} from "../expenses/schema";
 import { publicProcedure, t } from "../trpc";
 import { createDatabase } from "./index";
 import {
@@ -58,6 +61,7 @@ test.each([
         {
           partialExpense: fields,
           sourceText: "Purchase",
+          sourceImageIds: [],
           reason: "Missing details",
           suggestions: [],
         },
@@ -104,6 +108,7 @@ test.each([-1, -4500, -2_147_483_648])(
           {
             partialExpense: { amountInCents },
             sourceText: "Refund",
+            sourceImageIds: [],
             reason: "Missing details",
             suggestions: [],
           },
@@ -258,6 +263,21 @@ test("keeps the model input schema JSON-compatible", () => {
   expect(
     expenseModelOutputSchema.parse({ expenses: [purchase], failures: [] }),
   ).toEqual({ expenses: [purchase], failures: [] });
+});
+
+test("reads older capture failures without requiring image references", () => {
+  const failures = [
+    {
+      partialExpense: { title: "Coffee" },
+      sourceText: "Coffee",
+      reason: "Missing amount",
+      suggestions: [],
+    },
+  ];
+  expect(captureFailuresSchema.parse(failures)).toEqual(failures);
+  expect(
+    expenseModelOutputSchema.safeParse({ expenses: [], failures }).success,
+  ).toBe(false);
 });
 
 test.each([

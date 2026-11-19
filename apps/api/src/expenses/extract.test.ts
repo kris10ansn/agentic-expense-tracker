@@ -38,7 +38,7 @@ function googleResponse(output: unknown) {
   });
 }
 
-function expenseForm(description = "", files: File[] = []) {
+function expenseForm(description = "", files: readonly File[] = []) {
   const form = new FormData();
   form.set("id", "00000000-0000-4000-8000-000000000001");
   form.set("collectionId", "00000000-0000-4000-8000-000000000002");
@@ -116,7 +116,7 @@ describe("extractExpenses", () => {
     ).toEqual(extraction);
   });
 
-  test("sends context and image bytes to Gemini", async () => {
+  test("labels each image in upload order even when filenames match", async () => {
     const googleFetch = spyOn(globalThis, "fetch");
     const instructions = await Bun.file(
       new URL("./PROMPT.md", import.meta.url),
@@ -125,7 +125,9 @@ describe("extractExpenses", () => {
     setSystemTime(new Date(currentTime));
     expect(
       await extractExpenses(
-        expenseFormSchema.parse(expenseForm("  Coffee 45 kr  ", [image])),
+        expenseFormSchema.parse(
+          expenseForm("  Coffee 45 kr  ", [image, image]),
+        ),
       ),
     ).toEqual(extraction);
     expect(googleFetch).toHaveBeenCalledTimes(1);
@@ -152,6 +154,14 @@ describe("extractExpenses", () => {
                 input: "Coffee 45 kr",
               }),
             },
+            { text: JSON.stringify({ sourceImageId: "image-1" }) },
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: imageBytes.toString("base64"),
+              },
+            },
+            { text: JSON.stringify({ sourceImageId: "image-2" }) },
             {
               inlineData: {
                 mimeType: "image/png",
@@ -179,6 +189,7 @@ describe("extractExpenses", () => {
         {
           partialExpense: { title: "Lunch", purchasedAt },
           sourceText: "Lunch at 13:00",
+          sourceImageIds: [],
           reason: "Amount missing",
           suggestions: [],
         },
@@ -197,7 +208,78 @@ describe("extractExpenses", () => {
     expect(result.failures[0]?.partialExpense.purchasedAt).toEqual(
       new Date(purchasedAt),
     );
+    expect(result.failures[0]?.sourceImageIds).toEqual([]);
   });
+
+  test("preserves text and image sources for different issues alongside saved purchases", async () => {
+    const result = {
+      ...extraction,
+      failures: [
+        {
+          partialExpense: { title: "Lunch" },
+          sourceText: "Lunch 120 / Lunch 150",
+          sourceImageIds: ["image-1", "image-2"],
+          reason: "Conflicting totals for the same purchase",
+          suggestions: [],
+        },
+        {
+          partialExpense: { title: "Tea" },
+          sourceText: "Tea",
+          sourceImageIds: ["image-2"],
+          reason: "Missing amount",
+          suggestions: [],
+        },
+        {
+          partialExpense: { title: "Dinner" },
+          sourceText: "Dinner",
+          sourceImageIds: [],
+          reason: "Missing amount in the description",
+          suggestions: [],
+        },
+      ],
+    } satisfies Awaited<ReturnType<typeof extractExpenses>>;
+    spyOn(globalThis, "fetch").mockResolvedValue(googleResponse(result));
+
+    expect(
+      await extractExpenses(
+        expenseFormSchema.parse(
+          expenseForm("Coffee 45 kr, Dinner", [image, image]),
+        ),
+      ),
+    ).toEqual(result);
+  });
+
+  test.each([
+    { sourceImageIds: ["image-3"], files: [image, image] },
+    { sourceImageIds: ["image-0"], files: [image] },
+    { sourceImageIds: ["receipt.png"], files: [image] },
+    { sourceImageIds: ["image-1", "image-99"], files: [image] },
+    { sourceImageIds: ["image-1"], files: [] },
+    { sourceImageIds: undefined, files: [image] },
+    { sourceImageIds: null, files: [image] },
+  ])(
+    "rejects missing or invalid image references %j",
+    async ({ sourceImageIds, files }) => {
+      spyOn(globalThis, "fetch").mockResolvedValue(
+        googleResponse({
+          expenses: [],
+          failures: [
+            {
+              partialExpense: { title: "Lunch" },
+              sourceText: "Lunch",
+              sourceImageIds,
+              reason: "Missing amount",
+              suggestions: [],
+            },
+          ],
+        }),
+      );
+
+      await expect(
+        extractExpenses(expenseFormSchema.parse(expenseForm("Lunch", files))),
+      ).rejects.toBeInstanceOf(NoObjectGeneratedError);
+    },
+  );
 
   test("rejects model output that does not match the expense schema", async () => {
     spyOn(globalThis, "fetch").mockResolvedValue(

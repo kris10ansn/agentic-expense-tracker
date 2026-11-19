@@ -17,7 +17,7 @@ import {
 } from "drizzle-zod";
 import { z } from "zod";
 import { user } from "../auth/schema";
-import type { modelFailuresSchema } from "../expenses/schema";
+import type { captureFailuresSchema } from "../expenses/schema";
 
 export const expenseCollectionTable = pgTable(
   "expense_collections",
@@ -121,7 +121,7 @@ export const capturesTable = pgTable(
     status: captureStatus().notNull(),
     description: text().notNull(),
     fileNames: text().array().notNull(),
-    failures: jsonb().$type<z.infer<typeof modelFailuresSchema>>(),
+    failures: jsonb().$type<z.infer<typeof captureFailuresSchema>>(),
     errorMessage: text(),
     dismissedAt: timestamp({ withTimezone: true }),
   },
